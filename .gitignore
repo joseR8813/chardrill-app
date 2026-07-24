@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+chardrill.db
+*.sqbpro
+venv/
+.venv/
+.DS_Store

@@ -1,0 +1,499 @@
+(function(){
+  // pile: 'new' -> 'practice' -> 'mastered'
+  // promotion: 3 consecutive correct in practice -> mastered
+  // demotion: any miss in mastered -> practice; any miss in practice stays practice (streak resets)
+  // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
+  //  this file just displays whatever pile/streak the server hands back.)
+  let cards = [];
+  let history = []; // [{date:'YYYY-MM-DD', correct:n, total:n}]
+  let queue = [];
+  let current = null;
+  let sessionCorrect = 0, sessionTotal = 0;
+  let revealed = false;
+  let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
+  let tagFilterIds = null; // Set of card ids, only populated when currentFilter is 'tag:<id>'
+
+  function filteredCards(){
+    if(currentFilter === 'all') return cards;
+    if(currentFilter === 'custom') return cards.filter(c => !c.level);
+    if(currentFilter.startsWith('tag:')) return tagFilterIds ? cards.filter(c => tagFilterIds.has(c.id)) : [];
+    return cards.filter(c => c.level === currentFilter);
+  }
+
+  async function loadAll(){
+    try{
+      const res = await fetch('/api/cards');
+      cards = await res.json();
+    }catch(e){ cards = []; }
+    try{
+      const res = await fetch('/api/history');
+      history = await res.json();
+    }catch(e){ history = []; }
+    render();
+  }
+
+  async function loadTags(){
+    try{
+      const res = await fetch('/api/tags');
+      const tags = await res.json();
+
+      const select = document.getElementById('tag-select');
+      select.innerHTML = '<option value="">Select a set…</option>' +
+        tags.map(t => `<option value="${t.id}">${escapeHtml(t.name)} (${t.card_count})</option>`).join('') +
+        '<option value="__new__">+ Create new set…</option>';
+
+      const levelFilter = document.getElementById('level-filter');
+      levelFilter.querySelectorAll('.tag-option').forEach(opt => opt.remove());
+      tags.forEach(t=>{
+        const opt = document.createElement('option');
+        opt.value = `tag:${t.id}`;
+        opt.textContent = `${t.name} (${t.card_count})`;
+        opt.className = 'tag-option';
+        levelFilter.appendChild(opt);
+      });
+    }catch(e){ /* leave dropdowns as-is on failure */ }
+  }
+
+  let currentTagId = null;
+
+  document.getElementById('tag-select').addEventListener('change', async (e)=>{
+    const value = e.target.value;
+
+    if(value === '__new__'){
+      const name = prompt('Name your new set:');
+      if(!name || !name.trim()){
+        e.target.value = currentTagId || '';
+        return;
+      }
+      const res = await fetch('/api/tags', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name.trim()})
+      });
+      if(!res.ok){
+        const err = await res.json();
+        alert(err.error || 'Could not create set.');
+        e.target.value = currentTagId || '';
+        return;
+      }
+      const newTag = await res.json();
+      await loadTags();
+      e.target.value = newTag.id;
+      openSet(newTag.id, newTag.name);
+      return;
+    }
+
+    if(!value){
+      currentTagId = null;
+      document.getElementById('tag-count').textContent = '';
+      document.getElementById('set-label').textContent = '';
+      document.getElementById('set-members').innerHTML = '';
+      document.getElementById('search-results').innerHTML = '';
+      return;
+    }
+
+    const label = e.target.selectedOptions[0].textContent;
+    const name = label.replace(/\s*\(\d+\)$/, '');
+    openSet(Number(value), name);
+  });
+
+  async function openSet(tagId, tagName){
+    currentTagId = tagId;
+    document.getElementById('set-label').textContent = `In "${tagName}"`;
+    await loadSetMembers();
+  }
+
+    function renderSenses(card, showZy = true){
+  const senses = (card.senses && card.senses.length)
+    ? card.senses
+    : [{py: card.py, zy: card.zy, pos: card.pos, meaning: card.mn}];
+
+  if(senses.length === 1){
+    const s = senses[0];
+    return `${(showZy && s.zy) ? `<span class="zy">${escapeHtml(s.zy)}</span> · ` : ''}<span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}`;
+  }
+
+  return senses.map((s, i) => `
+    <div class="sense-row">
+      <span class="sense-num">${i+1}.</span>
+      ${s.pos ? `<span class="pos">(${escapeHtml(s.pos)})</span> ` : ''}
+      ${(showZy && s.zy) ? `<span class="zy">${escapeHtml(s.zy)}</span> · ` : ''}
+      <span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}
+    </div>
+  `).join('');
+  }
+
+  async function loadSetMembers(){
+    if(!currentTagId) return;
+    const res = await fetch(`/api/tags/${currentTagId}/cards`);
+    const members = await res.json();
+    document.getElementById('tag-count').textContent = `${members.length} cards`;
+
+    const el = document.getElementById('set-members');
+    if(!members.length){
+      el.innerHTML = '<div class="empty-note">No cards in this set yet. Search above to add some.</div>';
+    } else {
+      el.innerHTML = members.map(c => `
+        <div class="char-row">
+          <div class="hz">${escapeHtml(c.hz)}</div>
+          <div class="meta">${renderSenses(c)}</div>
+          <button class="del" data-id="${c.id}" title="Remove from set">✕</button>
+        </div>
+      `).join('');
+      el.querySelectorAll('.del').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = Number(btn.dataset.id);
+          await fetch(`/api/cards/${id}/tags/${currentTagId}`, {method:'DELETE'});
+          await loadSetMembers();
+          await loadTags();
+          const q = document.getElementById('card-search').value.trim();
+          if(q) runSearch(q);
+        });
+      });
+    }
+  }
+
+  let searchTimer = null;
+  document.getElementById('card-search').addEventListener('input', (e)=>{
+    clearTimeout(searchTimer);
+    const q = e.target.value.trim();
+    if(!q){ document.getElementById('search-results').innerHTML = ''; return; }
+    searchTimer = setTimeout(()=>runSearch(q), 300);
+  });
+
+  async function runSearch(q){
+    const res = await fetch(`/api/cards/search?q=${encodeURIComponent(q)}`);
+    const results = await res.json();
+    const el = document.getElementById('search-results');
+
+    if(!results.length){
+      el.innerHTML = '<div class="empty-note">No matches.</div>';
+      return;
+    }
+
+    let memberIds = new Set();
+    if(currentTagId){
+      const memberRes = await fetch(`/api/tags/${currentTagId}/cards`);
+      const members = await memberRes.json();
+      memberIds = new Set(members.map(c=>c.id));
+    }
+
+    el.innerHTML = results.map(c => {
+      const inSet = memberIds.has(c.id);
+      return `
+        <div class="char-row">
+          <div class="hz">${escapeHtml(c.hz)}</div>
+          <div class="meta">${renderSenses(c)}</div>
+          <button class="add-btn ${inSet ? 'already' : ''}" data-id="${c.id}" ${inSet ? 'disabled' : ''}>${inSet ? 'Already in set' : '+ Add'}</button>
+        </div>
+      `;
+    }).join('');
+
+    el.querySelectorAll('.add-btn:not(.already)').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!currentTagId){ alert('Select or create a set first.'); return; }
+        const id = Number(btn.dataset.id);
+        await fetch(`/api/cards/${id}/tags`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({tag_id: currentTagId})
+        });
+        await loadSetMembers();
+        await loadTags();
+        runSearch(document.getElementById('card-search').value.trim());
+      });
+    });
+  }
+
+  function counts(){
+    const set = filteredCards();
+    return {
+      new: set.filter(c=>c.pile==='new').length,
+      practice: set.filter(c=>c.pile==='practice').length,
+      mastered: set.filter(c=>c.pile==='mastered').length,
+    };
+  }
+
+  function renderPileCounts(){
+    const c = counts();
+    document.getElementById('count-new').textContent = c.new;
+    document.getElementById('count-practice').textContent = c.practice;
+    document.getElementById('count-mastered').textContent = c.mastered;
+  }
+
+  // ---------- Manage tab ----------
+  function renderCharList(){
+    const el = document.getElementById('char-list');
+    const set = cards;
+    if(!set.length){
+      el.innerHTML = '<div class="empty-note">No characters in this set yet.</div>';
+      return;
+    }
+    el.innerHTML = set.slice().reverse().map(c => `
+      <div class="char-row">
+        <div class="hz">${escapeHtml(c.hz)}</div>
+        <div class="meta">${renderSenses(c)}</div>
+        <div class="pile-tag ${c.pile}">${c.pile}</div>
+        <button class="del" data-id="${c.id}" title="Remove">✕</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.del').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = Number(btn.dataset.id);
+        await fetch(`/api/cards/${id}`, { method: 'DELETE' });
+        cards = cards.filter(c=>c.id !== id);
+        renderCharList(); renderPileCounts(); buildQueueIfNeeded();
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  document.getElementById('add-btn').addEventListener('click', async ()=>{
+    const hz = document.querySelector('input[name=hz]').value.trim();
+    const zy = document.querySelector('input[name=zy]').value.trim();
+    const py = document.querySelector('input[name=py]').value.trim();
+    const mn = document.querySelector('input[name=mn]').value.trim();
+    if(!hz || !py || !mn) return;
+    const res = await fetch('/api/cards', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({hz, zy, py, mn})
+    });
+    const newCard = await res.json();
+    cards.push(newCard);
+    document.querySelector('input[name=hz]').value='';
+    document.querySelector('input[name=zy]').value='';
+    document.querySelector('input[name=py]').value='';
+    document.querySelector('input[name=mn]').value='';
+    document.querySelector('input[name=hz]').focus();
+    renderCharList(); renderPileCounts(); buildQueueIfNeeded();
+  });
+
+  // ---------- Drill tab ----------
+  function pileWeight(pile){
+    // mastered cards are excluded from the drill pool entirely (0) - once you know
+    // it, it stays out of rotation until the whole set is reset back to new.
+    if(pile==='new') return 3;
+    if(pile==='practice') return 3;
+    return 0;
+  }
+
+  function buildQueue(){
+    let pool = [];
+    filteredCards().forEach(c=>{
+      const w = pileWeight(c.pile);
+      for(let i=0;i<w;i++) pool.push(c.id);
+    });
+    // shuffle
+    for(let i=pool.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [pool[i],pool[j]]=[pool[j],pool[i]];
+    }
+    queue = pool;
+  }
+
+  function buildQueueIfNeeded(){
+    if(!queue.length) buildQueue();
+  }
+
+  function nextCard(){
+    if(!filteredCards().length) return null;
+    if(!queue.length) buildQueue();
+    if(!queue.length) return null;
+    const id = queue.pop();
+    return cards.find(c=>c.id===id) || null;
+  }
+
+  async function resetMasteredSet(set){
+    const ids = set.map(c=>c.id);
+    const res = await fetch('/api/cards/reset', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids})
+    });
+    const updated = await res.json();
+    updated.forEach(u => {
+      const c = cards.find(c=>c.id===u.id);
+      if(c){ c.pile = u.pile; c.streak = u.streak; }
+    });
+    queue = [];
+    current = null;
+    renderPileCounts();
+    renderCharList();
+    renderDrill();
+  }
+
+  function renderDrill(){
+    const root = document.getElementById('drill-root');
+    const set = filteredCards();
+    if(!set.length){
+      root.innerHTML = '<div class="drill-empty">No characters in this set yet. Add some in the Characters tab, or pick a different set above.</div>';
+      return;
+    }
+    if(!current){
+      if(!queue.length && set.every(c=>c.pile==='mastered')){
+        root.innerHTML = '<div class="drill-empty">Set fully mastered — starting over…</div>';
+        resetMasteredSet(set);
+        return;
+      }
+      current = nextCard();
+      revealed = false;
+    }
+    if(!current){
+      root.innerHTML = '<div class="drill-empty">All caught up for now.</div>';
+      return;
+    }
+    const primaryZy = (current.senses && current.senses[0]) ? current.senses[0].zy : current.zy;
+    const primaryPy = (current.senses && current.senses[0]) ? current.senses[0].py : current.py;
+    root.innerHTML = `
+      <div class="drill-stage">
+        <div class="pile-indicator pile-tag ${current.pile}">${current.pile}</div>
+        <div class="streak">${sessionCorrect}/${sessionTotal} today</div>
+        <div class="flash-char-row">
+          <div class="flash-char">${escapeHtml(current.hz)}</div>
+          ${primaryZy ? `
+            <div class="flash-zy-wrap" tabindex="0">
+              <div class="flash-zy">${escapeHtml(primaryZy)}</div>
+              ${(!revealed && primaryPy) ? `<div class="zy-pinyin-peek">${escapeHtml(primaryPy)}</div>` : ''}
+            </div>
+          ` : ''}
+        </div>
+        <div class="flash-answer" id="answer-area">
+          ${revealed ? renderSenses(current, false) : ''}
+        </div>
+        ${revealed ? `
+          <div class="grade-row">
+            <button class="miss" id="btn-miss">Didn't know it</button>
+            <button class="hit" id="btn-hit">Knew it</button>
+          </div>
+        ` : `<div class="tap-hint" id="reveal-btn" style="cursor:pointer;text-decoration:underline;">Tap to reveal</div>`}
+      </div>
+    `;
+    if(!revealed){
+      document.getElementById('reveal-btn').addEventListener('click', ()=>{
+        revealed = true; renderDrill();
+      });
+    } else {
+      document.getElementById('btn-hit').addEventListener('click', ()=>grade(true));
+      document.getElementById('btn-miss').addEventListener('click', ()=>grade(false));
+    }
+  }
+
+  async function grade(correct){
+    sessionTotal++;
+    if(correct) sessionCorrect++;
+
+    const c = current;
+    const res = await fetch(`/api/cards/${c.id}/grade`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({correct})
+    });
+    const result = await res.json();
+
+    // Apply the server's pile/streak decision (see grade_card() in app.py) back onto
+    // the local card object - same fields, same shape as before, just server-sourced now.
+        c.pile = result.card.pile;
+    c.streak = result.card.streak;
+
+    // If this card just moved to a 0-weight pile (e.g. mastered), scrub any
+    // leftover duplicate copies of its id out of the queue - otherwise a card
+    // enqueued multiple times at its old weight can still surface later even
+    // after it's no longer supposed to be in rotation.
+    if(pileWeight(c.pile) === 0){
+      queue = queue.filter(id => id !== c.id);
+    }
+
+    // Update local history to match the server's upserted "today" row.
+    let today = history.find(h=>h.date===result.today.date);
+    if(!today){ history.push(result.today); }
+    else{ today.correct = result.today.correct; today.total = result.today.total; }
+
+    current = null;
+    renderPileCounts();
+    renderDrill();
+    renderHistory();
+  }
+
+  // ---------- History tab ----------
+  function renderHistory(){
+    const root = document.getElementById('history-root');
+    const last14 = [];
+    const now = new Date();
+    for(let i=13;i>=0;i--){
+      const d = new Date(now); d.setDate(d.getDate()-i);
+      const key = d.toISOString().slice(0,10);
+      const entry = history.find(h=>h.date===key);
+      last14.push({date:key, correct: entry?entry.correct:0, total: entry?entry.total:0});
+    }
+    const max = Math.max(1, ...last14.map(d=>d.total));
+    const bars = last14.map(d=>{
+      const h = d.total ? Math.max(4, Math.round((d.total/max)*100)) : 2;
+      const lbl = d.date.slice(5).replace('-','/');
+      return `<div class="hist-bar-wrap"><div class="hist-bar" style="height:${h}px;" title="${d.correct}/${d.total}"></div><div class="hist-lbl">${lbl}</div></div>`;
+    }).join('');
+
+    const recentLog = history.slice().reverse().slice(0,10).map(h=>`
+      <div class="row"><div class="d">${h.date}</div><div class="s">${h.correct}/${h.total} correct</div></div>
+    `).join('') || '<div class="empty-note">No sessions logged yet.</div>';
+
+    root.innerHTML = `
+      <div class="hist-chart">
+        <div class="hist-bars">${bars}</div>
+      </div>
+      <div class="hist-log">${recentLog}</div>
+      <button class="clear-btn" id="reset-hist-btn">Reset history</button>
+    `;
+    document.getElementById('reset-hist-btn').addEventListener('click', async ()=>{
+      if(!confirm('Clear all history? This cannot be undone.')) return;
+      await fetch('/api/history/reset', { method: 'POST' });
+      history = [];
+      renderHistory();
+    });
+  }
+
+   // ---------- Set filter ----------
+  document.getElementById('level-filter').addEventListener('change', async (e)=>{
+    currentFilter = e.target.value;
+    queue = [];
+    current = null;
+    revealed = false;
+
+    if(currentFilter.startsWith('tag:')){
+      const tagId = currentFilter.slice(4);
+      const res = await fetch(`/api/tags/${tagId}/cards`);
+      const members = await res.json();
+      tagFilterIds = new Set(members.map(c=>c.id));
+    } else {
+      tagFilterIds = null;
+    }
+
+    renderPileCounts();
+    renderCharList();
+    renderDrill();
+  });
+
+  // ---------- Tabs ----------
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('sec-'+tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  function render(){
+    renderPileCounts();
+    renderCharList();
+    buildQueueIfNeeded();
+    renderDrill();
+    renderHistory();
+  }
+
+  loadAll();
+  loadTags();
+})();

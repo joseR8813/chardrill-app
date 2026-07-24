@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>字 Drill</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-layout">
+
+  <nav class="sidebar">
+    <div class="masthead">
+      <h1><span class="cn">字</span>Drill</h1>
+      <div class="sub">character recognition</div>
+    </div>
+
+    <div class="side-nav">
+      <div class="tab active" data-tab="drill">Drill</div>
+      <div class="tab" data-tab="buildset">Build set</div>
+      <div class="tab" data-tab="addchar">Add character</div>
+      <div class="tab" data-tab="progress">Progress</div>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <section id="sec-drill" class="active">
+      <div class="piles">
+        <div class="pile-card new"><div class="n" id="count-new">–</div><div class="l">New</div></div>
+        <div class="pile-card practice"><div class="n" id="count-practice">–</div><div class="l">Practice</div></div>
+        <div class="pile-card mastered"><div class="n" id="count-mastered">–</div><div class="l">Mastered</div></div>
+      </div>
+
+      <div class="set-filter">
+        <label for="level-filter">Set</label>
+        <select id="level-filter">
+          <option value="all">All</option>
+          <option value="L0">TOCFL L0</option>
+          <option value="L1">TOCFL L1</option>
+          <option value="L2">TOCFL L2</option>
+          <option value="L3">TOCFL L3</option>
+          <option value="L4">TOCFL L4</option>
+          <option value="L5">TOCFL L5</option>
+          <option value="custom">Custom (my added cards)</option>
+        </select>
+      </div>
+
+      <div id="drill-root" class="loading">Loading…</div>
+    </section>
+
+    <section id="sec-buildset">
+      <div class="set-builder-header">
+        <select id="tag-select">
+          <option value="">Select a set…</option>
+          <option value="__new__">+ Create new set…</option>
+        </select>
+        <div class="tag-count" id="tag-count"></div>
+      </div>
+
+      <input id="card-search" placeholder="Search by character, pinyin, or meaning">
+      <div class="char-list" id="search-results"></div>
+
+      <div class="set-section-label" id="set-label"></div>
+      <div class="char-list" id="set-members"></div>
+    </section>
+
+    <section id="sec-addchar">
+      <div class="add-row">
+        <input name="hz" placeholder="字" maxlength="4">
+        <input name="zy" placeholder="ㄓㄨˋ ㄧㄣ" style="width:100px;">
+        <input name="py" placeholder="pinyin">
+        <input name="mn" placeholder="meaning">
+        <button id="add-btn">Add</button>
+      </div>
+      <div class="char-list" id="char-list"></div>
+    </section>
+
+    <section id="sec-progress">
+      <div id="history-root" class="loading">Loading…</div>
+    </section>
+
+  </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
