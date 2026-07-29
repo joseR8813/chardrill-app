@@ -5,3 +5,5 @@ chardrill.db
 venv/
 .venv/
 .DS_Store
+scripts/keys.py
+static/audio/
