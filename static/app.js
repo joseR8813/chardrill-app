@@ -7,6 +7,7 @@
   let cards = [];
   let history = []; // [{date:'YYYY-MM-DD', correct:n, total:n}]
   let queue = [];
+  let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
   let current = null;
   let sessionCorrect = 0, sessionTotal = 0;
   let revealed = false;
@@ -348,12 +349,14 @@
     }
     const primaryZy = (current.senses && current.senses[0]) ? current.senses[0].zy : current.zy;
     const primaryPy = (current.senses && current.senses[0]) ? current.senses[0].py : current.py;
+    const primaryAudio = (current.senses && current.senses[0]) ? current.senses[0].audio_url : null;
     root.innerHTML = `
       <div class="drill-stage">
         <div class="pile-indicator pile-tag ${current.pile}">${current.pile}</div>
         <div class="streak">${sessionCorrect}/${sessionTotal} today</div>
         <div class="flash-char-row">
           <div class="flash-char">${escapeHtml(current.hz)}</div>
+          ${primaryAudio ? `<button class="play-audio-btn" id="play-audio-btn" type="button" title="Play pronunciation">🔊</button>` : ''}
           ${primaryZy ? `
             <div class="flash-zy-wrap" tabindex="0">
               <div class="flash-zy">${escapeHtml(primaryZy)}</div>
@@ -372,6 +375,13 @@
         ` : `<div class="tap-hint" id="reveal-btn" style="cursor:pointer;text-decoration:underline;">Tap to reveal</div>`}
       </div>
     `;
+    if(primaryAudio){
+      document.getElementById('play-audio-btn').addEventListener('click', ()=>{
+        audioPlayer.src = primaryAudio;
+        audioPlayer.currentTime = 0;
+        audioPlayer.play();
+      });
+    }
     if(!revealed){
       document.getElementById('reveal-btn').addEventListener('click', ()=>{
         revealed = true; renderDrill();

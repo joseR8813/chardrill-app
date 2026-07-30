@@ -75,7 +75,7 @@ def attach_senses(cards_rows, db):
     ids = [c["id"] for c in cards_list]
     placeholders = ",".join("?" for _ in ids)
     sense_rows = db.execute(f"""
-        SELECT card_id, py, zy, pos, meaning, "order"
+        SELECT card_id, py, zy, pos, meaning, "order", audio_file
         FROM senses
         WHERE card_id IN ({placeholders})
         ORDER BY card_id, "order"
@@ -83,7 +83,11 @@ def attach_senses(cards_rows, db):
 
     senses_by_card = {}
     for s in sense_rows:
-        senses_by_card.setdefault(s["card_id"], []).append(dict(s))
+        sense = dict(s)
+        # Backend owns the "where do audio files live" knowledge - hand the
+        # frontend a ready-to-use URL instead of a bare filename.
+        sense["audio_url"] = f"/static/audio/{sense['audio_file']}" if sense["audio_file"] else None
+        senses_by_card.setdefault(s["card_id"], []).append(sense)
 
     for c in cards_list:
         c["senses"] = senses_by_card.get(c["id"], [])
