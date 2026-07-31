@@ -281,3 +281,24 @@
   .clear-btn:hover{border-color:var(--seal);color:var(--seal);}
 
   .loading{font-family:sans-serif;color:#9b917c;text-align:center;padding:60px 10px;}
+
+  /* Completed sessions (Progress tab) */
+  .completed-section{margin-top:22px;}
+  .completed-heading{
+    font-family:sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.5px;
+    text-transform:uppercase;color:#7a7364;margin-bottom:10px;
+  }
+  .completed-group{margin-bottom:16px;}
+  .completed-group-title{
+    font-family:sans-serif;font-size:.9rem;color:var(--ink);font-weight:600;margin-bottom:6px;
+  }
+  .completed-rows{border:1px solid var(--line);background:#fff;border-radius:2px;}
+  .completed-row{
+    display:flex;align-items:center;gap:14px;padding:8px 12px;
+    border-bottom:1px solid var(--line);font-family:sans-serif;font-size:.82rem;
+  }
+  .completed-row:last-child{border-bottom:none;}
+  .completed-row .idx{color:#9b917c;width:18px;}
+  .completed-row .dur{color:var(--ink);width:64px;}
+  .completed-row .hit{color:var(--jade);font-weight:600;}
+  .completed-row .miss{color:var(--seal);font-weight:600;}

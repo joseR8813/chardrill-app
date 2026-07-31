@@ -297,6 +297,57 @@ def reset_history():
     db.commit()
     return jsonify({"success": True})
 
+# ---------- Completed Sessions ----------
+
+@app.route("/api/sessions", methods=["POST"])
+def log_completed_session():
+    data = request.get_json(force=True)
+
+    set_key = data.get("set_key")
+    set_label = data.get("set_label")
+    started_at = data.get("started_at")
+    completed_at = data.get("completed_at")
+    correct_count = data.get("correct_count", 0)
+    miss_count = data.get("miss_count", 0)
+
+    if not all([set_key, set_label, started_at, completed_at]):
+        return jsonify({"error": "missing required fields"}), 400
+
+    # duration is computed server-side from the two timestamps rather than
+    # trusted from the client, so a paused/suspended tab can't report a
+    # bogus duration
+    from datetime import datetime
+    start_dt = datetime.fromisoformat(started_at)
+    end_dt = datetime.fromisoformat(completed_at)
+    duration_seconds = int((end_dt - start_dt).total_seconds())
+
+    db = get_db()
+    db.execute(
+        """INSERT INTO completed_sessions
+           (set_key, set_label, started_at, completed_at, duration_seconds, correct_count, miss_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (set_key, set_label, started_at, completed_at, duration_seconds, correct_count, miss_count),
+    )
+    db.commit()
+
+    return jsonify({"success": True}), 201
+
+
+@app.route("/api/sessions/today", methods=["GET"])
+def get_todays_sessions():
+    db = get_db()
+    today = date.today().isoformat()
+    rows = db.execute(
+        """SELECT set_key, set_label, started_at, completed_at, duration_seconds,
+                  correct_count, miss_count
+           FROM completed_sessions
+           WHERE date(completed_at) = ?
+           ORDER BY completed_at""",
+        (today,),
+    ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
 
 if __name__ == "__main__":
     app.run(debug=True)
+

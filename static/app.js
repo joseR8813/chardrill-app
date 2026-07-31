@@ -10,6 +10,7 @@
   let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
   let current = null;
   let sessionCorrect = 0, sessionTotal = 0;
+  let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built for the current filter
   let revealed = false;
   let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
   let tagFilterIds = null; // Set of card ids, only populated when currentFilter is 'tag:<id>'
@@ -22,16 +23,17 @@
   }
 
   async function loadAll(){
-    try{
-      const res = await fetch('/api/cards');
-      cards = await res.json();
-    }catch(e){ cards = []; }
-    try{
-      const res = await fetch('/api/history');
-      history = await res.json();
-    }catch(e){ history = []; }
-    render();
-  }
+  try{
+    const res = await fetch('/api/cards');
+    cards = await res.json();
+  }catch(e){ cards = []; }
+  try{
+    const res = await fetch('/api/history');
+    history = await res.json();
+  }catch(e){ history = []; }
+  await loadTodaysSessions();
+  render();
+}
 
   async function loadTags(){
     try{
@@ -282,7 +284,15 @@
     return 0;
   }
 
+  function getSetLabel(){
+  const select = document.getElementById('level-filter');
+  return select.selectedOptions[0]?.textContent || currentFilter;
+  }
+
   function buildQueue(){
+    if (!sessionStartedAt) {
+    sessionStartedAt = new Date().toISOString();
+    } 
     let pool = [];
     filteredCards().forEach(c=>{
       const w = pileWeight(c.pile);
@@ -306,6 +316,27 @@
     if(!queue.length) return null;
     const id = queue.pop();
     return cards.find(c=>c.id===id) || null;
+  }
+
+  async function completeSession(set){
+    try{
+      await fetch('/api/sessions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          set_key: currentFilter,
+          set_label: getSetLabel(),
+          started_at: sessionStartedAt,
+          completed_at: new Date().toISOString(),
+          correct_count: sessionCorrect,
+          miss_count: sessionTotal - sessionCorrect
+        })
+      });
+    }catch(e){ /* a failed log shouldn't block the reset */ }
+    sessionStartedAt = null;
+    await loadTodaysSessions();
+    renderHistory();
+    resetMasteredSet(set);
   }
 
   async function resetMasteredSet(set){
@@ -337,9 +368,14 @@
     if(!current){
       if(!queue.length && set.every(c=>c.pile==='mastered')){
         root.innerHTML = '<div class="drill-empty">Set fully mastered — starting over…</div>';
-        resetMasteredSet(set);
-        return;
-      }
+
+        if (sessionStartedAt) {
+          completeSession(set);
+          } else {
+          resetMasteredSet(set);
+          }
+          return;
+        }
       current = nextCard();
       revealed = false;
     }
@@ -406,7 +442,7 @@
 
     // Apply the server's pile/streak decision (see grade_card() in app.py) back onto
     // the local card object - same fields, same shape as before, just server-sourced now.
-        c.pile = result.card.pile;
+    c.pile = result.card.pile;
     c.streak = result.card.streak;
 
     // If this card just moved to a 0-weight pile (e.g. mastered), scrub any
@@ -427,6 +463,38 @@
     renderDrill();
     renderHistory();
   }
+
+  let todaysSessions = []; // raw rows from /api/sessions/today
+
+async function loadTodaysSessions(){
+  try{
+    const res = await fetch('/api/sessions/today');
+    todaysSessions = await res.json();
+  }catch(e){ todaysSessions = []; }
+}
+
+function groupSessionsBySet(sessions){
+  const groups = {};
+  sessions.forEach(s=>{
+    if(!groups[s.set_key]){
+      groups[s.set_key] = { label: s.set_label, sessions: [] };
+    }
+    groups[s.set_key].sessions.push(s);
+  });
+  // most-recently-completed set first
+  return Object.values(groups).sort((a,b)=>{
+    const aLast = a.sessions[a.sessions.length-1].completed_at;
+    const bLast = b.sessions[b.sessions.length-1].completed_at;
+    return bLast.localeCompare(aLast);
+  });
+}
+
+function formatDuration(seconds){
+  if(seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds/60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
 
   // ---------- History tab ----------
   function renderHistory(){
@@ -450,12 +518,33 @@
       <div class="row"><div class="d">${h.date}</div><div class="s">${h.correct}/${h.total} correct</div></div>
     `).join('') || '<div class="empty-note">No sessions logged yet.</div>';
 
+    const groups = groupSessionsBySet(todaysSessions);
+    const completedHtml = groups.length ? groups.map(g => `
+      <div class="completed-group">
+        <div class="completed-group-title">${escapeHtml(g.label)} — ${g.sessions.length} completion${g.sessions.length>1?'s':''} today</div>
+        <div class="completed-rows">
+          ${g.sessions.map((s,i)=>`
+            <div class="completed-row">
+              <span class="idx">${i+1}.</span>
+              <span class="dur">${formatDuration(s.duration_seconds)}</span>
+              <span class="hit">${s.correct_count} correct</span>
+              <span class="miss">${s.miss_count} missed</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('') : '<div class="empty-note">No completed sets today.</div>';
+
     root.innerHTML = `
       <div class="hist-chart">
         <div class="hist-bars">${bars}</div>
       </div>
       <div class="hist-log">${recentLog}</div>
       <button class="clear-btn" id="reset-hist-btn">Reset history</button>
+      <div class="completed-section">
+        <div class="completed-heading">Completed today</div>
+        ${completedHtml}
+      </div>
     `;
     document.getElementById('reset-hist-btn').addEventListener('click', async ()=>{
       if(!confirm('Clear all history? This cannot be undone.')) return;
@@ -471,6 +560,7 @@
     queue = [];
     current = null;
     revealed = false;
+    sessionStartedAt = null;
 
     if(currentFilter.startsWith('tag:')){
       const tagId = currentFilter.slice(4);

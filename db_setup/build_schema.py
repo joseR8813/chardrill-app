@@ -90,7 +90,26 @@ CREATE TABLE IF NOT EXISTS history (
 );
 """)
 
+# --- completed_sessions ----------------------------------------------------
+# One row per fully-completed drill session (every card in the set reached
+# 'mastered' in one continuous sitting). Powers the per-day "completed Nx
+# today" list in the History tab. Separate from `history`, which stays a
+# daily aggregate across ALL drilling regardless of set.
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS completed_sessions (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_key           TEXT NOT NULL,
+    set_label         TEXT NOT NULL,
+    started_at        TEXT NOT NULL,
+    completed_at      TEXT NOT NULL,
+    duration_seconds  INTEGER NOT NULL,
+    correct_count     INTEGER NOT NULL DEFAULT 0,
+    miss_count        INTEGER NOT NULL DEFAULT 0
+);
+""")
+
 conn.commit()
+
 
 # --- sanity check: list tables just created ---
 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
