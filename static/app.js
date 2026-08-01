@@ -10,6 +10,7 @@
   let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
   let current = null;
   let sessionCorrect = 0, sessionTotal = 0;
+  let attemptCorrect = 0, attemptMiss = 0;
   let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built for the current filter
   let revealed = false;
   let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
@@ -292,6 +293,8 @@
   function buildQueue(){
     if (!sessionStartedAt) {
     sessionStartedAt = new Date().toISOString();
+    attemptCorrect = 0;
+    attemptMiss = 0;
     } 
     let pool = [];
     filteredCards().forEach(c=>{
@@ -328,8 +331,8 @@
           set_label: getSetLabel(),
           started_at: sessionStartedAt,
           completed_at: new Date().toISOString(),
-          correct_count: sessionCorrect,
-          miss_count: sessionTotal - sessionCorrect
+          correct_count: attemptCorrect,
+          miss_count: attemptMiss
         })
       });
     }catch(e){ /* a failed log shouldn't block the reset */ }
@@ -431,6 +434,7 @@
   async function grade(correct){
     sessionTotal++;
     if(correct) sessionCorrect++;
+    if(correct) attemptCorrect++; else attemptMiss++;
 
     const c = current;
     const res = await fetch(`/api/cards/${c.id}/grade`, {
