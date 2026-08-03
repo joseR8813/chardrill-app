@@ -302,3 +302,12 @@
   .completed-row .dur{color:var(--ink);width:64px;}
   .completed-row .hit{color:var(--jade);font-weight:600;}
   .completed-row .miss{color:var(--seal);font-weight:600;}
+
+  /*timer */
+  .session-timer{
+  font-family:sans-serif;
+  font-size:.75rem;
+  color:#9b917c;
+  letter-spacing:.5px;
+  margin-bottom:10px;
+}

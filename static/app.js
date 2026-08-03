@@ -291,11 +291,6 @@
   }
 
   function buildQueue(){
-    if (!sessionStartedAt) {
-    sessionStartedAt = new Date().toISOString();
-    attemptCorrect = 0;
-    attemptMiss = 0;
-    } 
     let pool = [];
     filteredCards().forEach(c=>{
       const w = pileWeight(c.pile);
@@ -470,35 +465,73 @@
 
   let todaysSessions = []; // raw rows from /api/sessions/today
 
-async function loadTodaysSessions(){
-  try{
-    const res = await fetch('/api/sessions/today');
-    todaysSessions = await res.json();
-  }catch(e){ todaysSessions = []; }
-}
+  async function loadTodaysSessions(){
+    try{
+      const res = await fetch('/api/sessions/today');
+      todaysSessions = await res.json();
+    }catch(e){ todaysSessions = []; }
+  }
 
-function groupSessionsBySet(sessions){
-  const groups = {};
-  sessions.forEach(s=>{
-    if(!groups[s.set_key]){
-      groups[s.set_key] = { label: s.set_label, sessions: [] };
+  function groupSessionsBySet(sessions){
+    const groups = {};
+    sessions.forEach(s=>{
+      if(!groups[s.set_key]){
+        groups[s.set_key] = { label: s.set_label, sessions: [] };
+      }
+      groups[s.set_key].sessions.push(s);
+    });
+    // most-recently-completed set first
+    return Object.values(groups).sort((a,b)=>{
+      const aLast = a.sessions[a.sessions.length-1].completed_at;
+      const bLast = b.sessions[b.sessions.length-1].completed_at;
+      return bLast.localeCompare(aLast);
+    });
+  }
+
+  function formatDuration(seconds){
+    if(seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds/60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  }
+
+  function formatElapsed(totalSeconds){
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return `${h}:${pad(m)}:${pad(s)}`;
+  }
+
+  function updateSessionTimer(){
+    const el = document.getElementById('session-timer');
+    if(!el) return; // element not in DOM yet (shouldn't normally happen, but safe)
+
+    if(!sessionStartedAt){
+      el.textContent = '';
+      return;
     }
-    groups[s.set_key].sessions.push(s);
-  });
-  // most-recently-completed set first
-  return Object.values(groups).sort((a,b)=>{
-    const aLast = a.sessions[a.sessions.length-1].completed_at;
-    const bLast = b.sessions[b.sessions.length-1].completed_at;
-    return bLast.localeCompare(aLast);
-  });
-}
 
-function formatDuration(seconds){
-  if(seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds/60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
-}
+    const elapsedMs = Date.now() - new Date(sessionStartedAt).getTime();
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    el.textContent = formatElapsed(elapsedSeconds);
+  }
+
+  function startDrillSession(){
+    if(!sessionStartedAt){
+      sessionStartedAt = new Date().toISOString();
+      attemptCorrect = 0;
+      attemptMiss = 0;
+    }
+  }
+
+  function endDrillSession(){
+    sessionStartedAt = null;
+    attemptCorrect = 0;
+    attemptMiss = 0;
+    current = null;
+    queue = [];
+  }
 
   // ---------- History tab ----------
   function renderHistory(){
@@ -561,10 +594,9 @@ function formatDuration(seconds){
    // ---------- Set filter ----------
   document.getElementById('level-filter').addEventListener('change', async (e)=>{
     currentFilter = e.target.value;
-    queue = [];
-    current = null;
+    endDrillSession();
+    startDrillSession();
     revealed = false;
-    sessionStartedAt = null;
 
     if(currentFilter.startsWith('tag:')){
       const tagId = currentFilter.slice(4);
@@ -583,10 +615,21 @@ function formatDuration(seconds){
   // ---------- Tabs ----------
   document.querySelectorAll('.tab').forEach(tab=>{
     tab.addEventListener('click', ()=>{
+      const previousTab = document.querySelector('.tab.active')?.dataset.tab;
+
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
       document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById('sec-'+tab.dataset.tab).classList.add('active');
+
+      const newTab = tab.dataset.tab;
+
+      if(previousTab === 'drill' && newTab !== 'drill'){
+        endDrillSession();
+      }
+      if(newTab === 'drill'){
+        startDrillSession();
+      }
     });
   });
 
@@ -598,6 +641,11 @@ function formatDuration(seconds){
     renderHistory();
   }
 
+  if(document.querySelector('.tab.active')?.dataset.tab === 'drill'){
+    startDrillSession();
+  }
+
   loadAll();
   loadTags();
+  setInterval(updateSessionTimer, 1000);
 })();
