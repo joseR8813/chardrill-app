@@ -15,6 +15,7 @@
   let revealed = false;
   let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
   let tagFilterIds = null; // Set of card ids, only populated when currentFilter is 'tag:<id>'
+  let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
 
   function filteredCards(){
     if(currentFilter === 'all') return cards;
@@ -330,15 +331,17 @@
           miss_count: attemptMiss
         })
       });
-    }catch(e){ /* a failed log shouldn't block the reset */ }
-    sessionStartedAt = null;
+    }catch(e){ /* a failed log shouldn't block anything */ }
     await loadTodaysSessions();
     renderHistory();
-    resetMasteredSet(set);
   }
 
-  async function resetMasteredSet(set){
-    const ids = set.map(c=>c.id);
+  async function resetMasteredSet(set, idsOverride){
+    // Default: only send back cards that were actually missed this session
+    // (Missed-Cards Tracking, Direction B) - clean cards stay mastered.
+    // idsOverride lets a caller force a full reset instead (used for the
+    // "arrived at an already-fully-mastered set, nothing graded" case).
+    const ids = idsOverride || set.filter(c => missedCards.has(c.id)).map(c => c.id);
     const res = await fetch('/api/cards/reset', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -365,15 +368,23 @@
     }
     if(!current){
       if(!queue.length && set.every(c=>c.pile==='mastered')){
-        root.innerHTML = '<div class="drill-empty">Set fully mastered — starting over…</div>';
+        const gradedThisSession = (attemptCorrect + attemptMiss) > 0;
 
-        if (sessionStartedAt) {
-          completeSession(set);
-          } else {
-          resetMasteredSet(set);
-          }
+        if(!gradedThisSession){
+          // Nothing was drilled this round (e.g. landing on a set that was
+          // already fully mastered) - nothing to report, so skip the
+          // completion screen and just reset everything like before.
+          root.innerHTML = '<div class="drill-empty">Set fully mastered — starting over…</div>';
+          resetMasteredSet(set, set.map(c=>c.id));
           return;
         }
+
+        if(sessionStartedAt){
+          completeSession(set); // logging only now - piles aren't touched until Continue
+        }
+        renderCompletionScreen(set);
+        return;
+      }
       current = nextCard();
       revealed = false;
     }
@@ -426,12 +437,54 @@
     }
   }
 
+  // Missed-Cards Tracking (Direction B): shown once a filtered set finishes,
+  // in place of the old instant silent reset. Reuses .drill-stage plus the
+  // .round-summary and .char-list/.char-row classes already in style.css.
+  function renderCompletionScreen(set){
+    const root = document.getElementById('drill-root');
+
+    const missedRows = Array.from(missedCards.entries()).map(([id, count]) => {
+      const card = cards.find(c => c.id === id);
+      const hz = card ? card.hz : '?';
+      return `
+        <div class="char-row">
+          <div class="hz">${escapeHtml(hz)}</div>
+          <div class="meta">missed ${count}×</div>
+        </div>
+      `;
+    }).join('');
+
+    root.innerHTML = `
+      <div class="drill-stage">
+        <div class="round-summary">
+          <div class="big">${attemptCorrect}/${attemptCorrect + attemptMiss}</div>
+          <div>correct this round</div>
+        </div>
+        <div class="set-section-label">Missed this round</div>
+        <div class="char-list">
+          ${missedRows || '<div class="empty-note">Perfect round — nothing missed!</div>'}
+        </div>
+        <button id="continue-btn">Continue</button>
+      </div>
+    `;
+
+    document.getElementById('continue-btn').addEventListener('click', async ()=>{
+      const idsToReset = set.filter(c => missedCards.has(c.id)).map(c => c.id);
+      endDrillSession();
+      startDrillSession();
+      await resetMasteredSet(set, idsToReset);
+    });
+  }
+
   async function grade(correct){
     sessionTotal++;
     if(correct) sessionCorrect++;
     if(correct) attemptCorrect++; else attemptMiss++;
 
     const c = current;
+    if(!correct){
+      missedCards.set(c.id, (missedCards.get(c.id) || 0) + 1);
+    }
     const res = await fetch(`/api/cards/${c.id}/grade`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -522,6 +575,7 @@
       sessionStartedAt = new Date().toISOString();
       attemptCorrect = 0;
       attemptMiss = 0;
+      missedCards = new Map();
     }
   }
 
@@ -529,6 +583,7 @@
     sessionStartedAt = null;
     attemptCorrect = 0;
     attemptMiss = 0;
+    missedCards = new Map();
     current = null;
     queue = [];
   }
