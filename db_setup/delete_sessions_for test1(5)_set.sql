@@ -1,0 +1,1 @@
+DELETE FROM completed_sessions WHERE set_label = 'Book 1 (5)';

@@ -24,6 +24,35 @@
     return cards.filter(c => c.level === currentFilter);
   }
 
+  async function restoreFilter(){
+    // 1. read the saved value
+    let saved = null;
+    try{ saved = localStorage.getItem('drillFilter'); }catch(err){}
+    if(!saved) return;
+
+    if(saved.startsWith('tag:')){
+      const tagId = saved.slice(4);
+      const res = await fetch(`/api/tags/${tagId}/cards`);
+      const members = await res.json();
+      tagFilterIds = new Set(members.map(c=>c.id));
+    } else {
+      tagFilterIds = null;
+    }
+
+    // 3. put the value into the dropdown
+    const select = document.getElementById('level-filter');
+    select.value = saved;
+
+    // 4. did it take? if not, clean up and stay on 'all'
+    if(select.value !== saved){
+      try{ localStorage.removeItem('drillFilter'); }catch(err){}
+      tagFilterIds = null;
+      select.value = 'all';
+      return;
+    }
+    currentFilter = saved;
+  }
+
   async function loadAll(){
   try{
     const res = await fetch('/api/cards');
@@ -34,6 +63,8 @@
     history = await res.json();
   }catch(e){ history = []; }
   await loadTodaysSessions();
+  await restoreFilter(); 
+  await resetMasteredSet(filteredCards(), filteredCards().map(c => c.id));
   render();
 }
 
@@ -649,6 +680,7 @@
    // ---------- Set filter ----------
   document.getElementById('level-filter').addEventListener('change', async (e)=>{
     currentFilter = e.target.value;
+    try{ localStorage.setItem('drillFilter', currentFilter); }catch(err){}
     endDrillSession();
     startDrillSession();
     revealed = false;
@@ -662,9 +694,8 @@
       tagFilterIds = null;
     }
 
-    renderPileCounts();
-    renderCharList();
-    renderDrill();
+    await resetMasteredSet(filteredCards(), filteredCards().map(c => c.id));
+    
   });
 
   // ---------- Tabs ----------
@@ -700,7 +731,6 @@
     startDrillSession();
   }
 
-  loadAll();
-  loadTags();
+  loadTags().then(loadAll);
   setInterval(updateSessionTimer, 1000);
 })();
