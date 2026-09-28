@@ -328,3 +328,25 @@
   letter-spacing:.5px;
   margin-bottom:10px;
 }
+
+  /*Reading */
+  #sec-reading .hz {
+    font-size: 28px;
+    line-height: 1.8;
+    margin: 0;
+  }
+
+#sec-reading .zy {
+  font-size: 18px;
+  color: var(--seal);
+  margin: 4px 0 0 0;
+  font-family: "Microsoft JhengHei", sans-serif;
+}
+#sec-reading .py {
+  font-size: 16px;
+  color: var(--gold);
+}
+
+#sec-reading .line {
+  margin-bottom: 26px;
+}

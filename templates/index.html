@@ -16,6 +16,7 @@
 
     <div class="side-nav">
       <div class="tab active" data-tab="drill">Drill</div>
+      <div class="tab" data-tab="reading">Reading</div>
       <div class="tab" data-tab="buildset">Build set</div>
       <div class="tab" data-tab="addchar">Add character</div>
       <div class="tab" data-tab="progress">Progress</div>
@@ -86,10 +87,21 @@
       <div id="history-root" class="loading">Loading…</div>
     </section>
 
+    <section id="sec-reading">
+      <div class="set-filter">
+        <label for="chapter-select">Chapter</label>
+        <select id="chapter-select"></select>
+      </div>
+      <h2 id="lesson-title"></h2>
+      <div id="lesson-body"></div>
+    </section>
+
   </main>
 
 </div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
+<script src="{{ url_for('static', filename='reading/lessons.js') }}"></script>
+<script src="{{ url_for('static', filename='reading.js') }}"></script>
 </body>
 </html>
