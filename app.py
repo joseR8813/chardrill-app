@@ -112,8 +112,8 @@ def add_card():
     )
     card_id = cur.lastrowid
     db.execute(
-        'INSERT INTO senses (card_id, py, zy, pos, meaning, classifier, "order") '
-        "VALUES (?, ?, ?, NULL, ?, NULL, 0)",
+        'INSERT INTO senses (card_id, py, py_plain, zy, pos, meaning, classifier, "order") '
+        "VALUES (?, ?, ?, ?, NULL, ?, NULL, 0)",
         (card_id, py, strip_tones(py), zy, mn)
     )
     db.commit()
@@ -341,7 +341,7 @@ def get_todays_sessions():
         """SELECT set_key, set_label, started_at, completed_at, duration_seconds,
                   correct_count, miss_count
            FROM completed_sessions
-           WHERE date(completed_at) = ?
+           WHERE date(completed_at, 'localtime') = ?
            ORDER BY completed_at""",
         (today,),
     ).fetchall()

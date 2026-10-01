@@ -619,6 +619,13 @@
     queue = [];
   }
 
+  function localDateKey(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // ---------- History tab ----------
   function renderHistory(){
     const root = document.getElementById('history-root');
@@ -626,7 +633,7 @@
     const now = new Date();
     for(let i=13;i>=0;i--){
       const d = new Date(now); d.setDate(d.getDate()-i);
-      const key = d.toISOString().slice(0,10);
+      const key = localDateKey(d);
       const entry = history.find(h=>h.date===key);
       last14.push({date:key, correct: entry?entry.correct:0, total: entry?entry.total:0});
     }
