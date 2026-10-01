@@ -203,13 +203,24 @@ def search_cards():
 
     db = get_db()
     like = f"%{q}%"
+    exact = q.lower()
+    starts = f"{q.lower()}%"
     rows = db.execute("""
-        SELECT DISTINCT c.id, c.hz, c.level, c.source, c.pile, c.streak
+        SELECT c.id, c.hz, c.level, c.source, c.pile, c.streak
         FROM cards c
         LEFT JOIN senses s ON s.card_id = c.id
         WHERE c.hz LIKE ? OR s.py LIKE ? OR s.py_plain LIKE ? OR s.meaning LIKE ?
+        GROUP BY c.id
+        ORDER BY MIN(
+            CASE
+                WHEN c.hz = ? OR s.py_plain = ?    THEN 1
+                WHEN c.hz LIKE ? OR s.py_plain LIKE ?      THEN 2
+                WHEN s.py LIKE ? OR s.py_plain LIKE ? OR c.hz LIKE ? THEN 3
+                ELSE 4                          
+            END
+        )
         LIMIT 30
-    """, (like, like, like, like)).fetchall()
+    """, (like, like, like, like,  exact, exact,  starts, starts,  like, like, like)).fetchall()
     return jsonify(attach_senses(rows, db))
 
 
