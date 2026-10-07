@@ -1,6 +1,5 @@
 (function(){
   // pile: 'new' -> 'practice' -> 'mastered'
-  // promotion: 3 consecutive correct in practice -> mastered
   // demotion: any miss in mastered -> practice; any miss in practice stays practice (streak resets)
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
@@ -32,9 +31,16 @@
 
     if(saved.startsWith('tag:')){
       const tagId = saved.slice(4);
-      const res = await fetch(`/api/tags/${tagId}/cards`);
-      const members = await res.json();
-      tagFilterIds = new Set(members.map(c=>c.id));
+      try{
+        const res = await fetch(`/api/tags/${tagId}/cards`);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const members = await res.json();
+        tagFilterIds = new Set(members.map(c=>c.id));
+      }catch(err){
+        console.warn('restoreFilter: could not load saved set, showing all cards', err);
+        tagFilterIds = null;
+        return;
+      }
     } else {
       tagFilterIds = null;
     }
