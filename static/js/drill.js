@@ -6,9 +6,9 @@ import { filteredCards } from './filter.js';
 import { renderCharList } from './manage.js';
 import { fetchSetMembers } from './api.js';
 
-  // pile: 'new' -> 'practice' -> 'mastered'
-  // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
-  //  this file just displays whatever pile/streak the server hands back.)
+// pile: 'new' -> 'practice' -> 'mastered'
+// (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
+//  this file just displays whatever pile/streak the server hands back.)
 
 let queue = [];
 let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
@@ -19,96 +19,96 @@ let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built f
 let revealed = false;
 let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
 
-function counts(){
+function counts() {
     const set = filteredCards();
     return {
-    new: set.filter(c=>c.pile==='new').length,
-    practice: set.filter(c=>c.pile==='practice').length,
-    mastered: set.filter(c=>c.pile==='mastered').length,
+        new: set.filter(c => c.pile === 'new').length,
+        practice: set.filter(c => c.pile === 'practice').length,
+        mastered: set.filter(c => c.pile === 'mastered').length,
     };
 }
-  
-export function renderPileCounts(){
+
+export function renderPileCounts() {
     const c = counts();
     document.getElementById('count-new').textContent = c.new;
     document.getElementById('count-practice').textContent = c.practice;
     document.getElementById('count-mastered').textContent = c.mastered;
-    }
-  
+}
+
 // ---------- Drill tab ----------
-function pileWeight(pile){
+function pileWeight(pile) {
     // mastered cards are excluded from the drill pool entirely (0) - once you know
     // it, it stays out of rotation until the whole set is reset back to new.
-    if(pile==='new') return 3;
-    if(pile==='practice') return 3;
+    if (pile === 'new') return 3;
+    if (pile === 'practice') return 3;
     return 0;
 }
 
-function getSetLabel(){
-const select = document.getElementById('level-filter');
-return select.selectedOptions[0]?.textContent || state.currentFilter;
+function getSetLabel() {
+    const select = document.getElementById('level-filter');
+    return select.selectedOptions[0]?.textContent || state.currentFilter;
 }
 
-function buildQueue(){
+function buildQueue() {
     let pool = [];
-    filteredCards().forEach(c=>{
-    const w = pileWeight(c.pile);
-    for(let i=0;i<w;i++) pool.push(c.id);
+    filteredCards().forEach(c => {
+        const w = pileWeight(c.pile);
+        for (let i = 0; i < w; i++) pool.push(c.id);
     });
     // shuffle
-    for(let i=pool.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [pool[i],pool[j]]=[pool[j],pool[i]];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
     }
     queue = pool;
 }
 
-export function buildQueueIfNeeded(){
-    if(!queue.length) buildQueue();
+export function buildQueueIfNeeded() {
+    if (!queue.length) buildQueue();
 }
 
-function nextCard(){
-    if(!filteredCards().length) return null;
-    if(!queue.length) buildQueue();
-    if(!queue.length) return null;
+function nextCard() {
+    if (!filteredCards().length) return null;
+    if (!queue.length) buildQueue();
+    if (!queue.length) return null;
     const id = queue.pop();
-    return state.cards.find(c=>c.id===id) || null;
+    return state.cards.find(c => c.id === id) || null;
 }
 
-async function completeSession(){
-    try{
-    await fetch('/api/sessions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-        set_key: state.currentFilter,
-        set_label: getSetLabel(),
-        started_at: sessionStartedAt,
-        completed_at: new Date().toISOString(),
-        correct_count: attemptCorrect,
-        miss_count: attemptMiss
-        })
-    });
-    }catch(e){ /* a failed log shouldn't block anything */ }
+async function completeSession() {
+    try {
+        await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                set_key: state.currentFilter,
+                set_label: getSetLabel(),
+                started_at: sessionStartedAt,
+                completed_at: new Date().toISOString(),
+                correct_count: attemptCorrect,
+                miss_count: attemptMiss
+            })
+        });
+    } catch (e) { /* a failed log shouldn't block anything */ }
     await loadTodaysSessions();
     renderHistory();
 }
 
-export async function resetMasteredSet(set, idsOverride){
+export async function resetMasteredSet(set, idsOverride) {
     // Default: only send back cards that were actually missed this session
     // (Missed-Cards Tracking, Direction B) - clean cards stay mastered.
     // idsOverride lets a caller force a full reset instead (used for the
     // "arrived at an already-fully-mastered set, nothing graded" case).
     const ids = idsOverride || set.filter(c => missedCards.has(c.id)).map(c => c.id);
     const res = await fetch('/api/cards/reset', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ids})
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
     });
     const updated = await res.json();
     updated.forEach(u => {
-    const c = state.cards.find(c=>c.id===u.id);
-    if(c){ c.pile = u.pile; c.streak = u.streak; }
+        const c = state.cards.find(c => c.id === u.id);
+        if (c) { c.pile = u.pile; c.streak = u.streak; }
     });
     queue = [];
     current = null;
@@ -117,38 +117,38 @@ export async function resetMasteredSet(set, idsOverride){
     renderDrill();
 }
 
-export function renderDrill(){
+export function renderDrill() {
     const root = document.getElementById('drill-root');
     const set = filteredCards();
-    if(!set.length){
-    root.innerHTML = '<div class="drill-empty">No characters in this set yet. Add some in the Characters tab, or pick a different set above.</div>';
-    return;
-    }
-    if(!current){
-    if(!queue.length && set.every(c=>c.pile==='mastered')){
-        const gradedThisSession = (attemptCorrect + attemptMiss) > 0;
-
-        if(!gradedThisSession){
-        // Nothing was drilled this round (e.g. landing on a set that was
-        // already fully mastered) - nothing to report, so skip the
-        // completion screen and just reset everything like before.
-        root.innerHTML = '<div class="drill-empty">Set fully mastered — starting over…</div>';
-        resetMasteredSet(set, set.map(c=>c.id));
-        return;
-        }
-
-        if(sessionStartedAt){
-        completeSession(); // logging only now - piles aren't touched until Continue
-        }
-        renderCompletionScreen(set);
+    if (!set.length) {
+        root.innerHTML = '<div class="drill-empty">No characters in this set yet. Add some in the Characters tab, or pick a different set above.</div>';
         return;
     }
-    current = nextCard();
-    revealed = false;
+    if (!current) {
+        if (!queue.length && set.every(c => c.pile === 'mastered')) {
+            const gradedThisSession = (attemptCorrect + attemptMiss) > 0;
+
+            if (!gradedThisSession) {
+                // Nothing was drilled this round (e.g. landing on a set that was
+                // already fully mastered) - nothing to report, so skip the
+                // completion screen and just reset everything like before.
+                root.innerHTML = '<div class="drill-empty">Set fully mastered — starting over…</div>';
+                resetMasteredSet(set, set.map(c => c.id));
+                return;
+            }
+
+            if (sessionStartedAt) {
+                completeSession(); // logging only now - piles aren't touched until Continue
+            }
+            renderCompletionScreen(set);
+            return;
+        }
+        current = nextCard();
+        revealed = false;
     }
-    if(!current){
-    root.innerHTML = '<div class="drill-empty">All caught up for now.</div>';
-    return;
+    if (!current) {
+        root.innerHTML = '<div class="drill-empty">All caught up for now.</div>';
+        return;
     }
     const primaryZy = (current.senses && current.senses[0]) ? current.senses[0].zy : current.zy;
     const primaryPy = (current.senses && current.senses[0]) ? current.senses[0].py : current.py;
@@ -178,33 +178,33 @@ export function renderDrill(){
         ` : `<div class="tap-hint" id="reveal-btn" style="cursor:pointer;text-decoration:underline;">Tap to reveal</div>`}
     </div>
     `;
-    if(primaryAudio){
-    document.getElementById('play-audio-btn').addEventListener('click', ()=>{
-        audioPlayer.src = primaryAudio;
-        audioPlayer.currentTime = 0;
-        audioPlayer.play();
-    });
+    if (primaryAudio) {
+        document.getElementById('play-audio-btn').addEventListener('click', () => {
+            audioPlayer.src = primaryAudio;
+            audioPlayer.currentTime = 0;
+            audioPlayer.play();
+        });
     }
-    if(!revealed){
-    document.getElementById('reveal-btn').addEventListener('click', ()=>{
-        revealed = true; renderDrill();
-    });
+    if (!revealed) {
+        document.getElementById('reveal-btn').addEventListener('click', () => {
+            revealed = true; renderDrill();
+        });
     } else {
-    document.getElementById('btn-hit').addEventListener('click', ()=>grade(true));
-    document.getElementById('btn-miss').addEventListener('click', ()=>grade(false));
+        document.getElementById('btn-hit').addEventListener('click', () => grade(true));
+        document.getElementById('btn-miss').addEventListener('click', () => grade(false));
     }
 }
 
 // Missed-Cards Tracking (Direction B): shown once a filtered set finishes,
 // in place of the old instant silent reset. Reuses .drill-stage plus the
 // .round-summary and .char-list/.char-row classes already in style.css.
-function renderCompletionScreen(set){
+function renderCompletionScreen(set) {
     const root = document.getElementById('drill-root');
 
     const missedRows = Array.from(missedCards.entries()).map(([id, count]) => {
-    const card = state.cards.find(c => c.id === id);
-    const hz = card ? card.hz : '?';
-    return `
+        const card = state.cards.find(c => c.id === id);
+        const hz = card ? card.hz : '?';
+        return `
         <div class="char-row">
         <div class="hz">${escapeHtml(hz)}</div>
         <div class="meta">missed ${count}×</div>
@@ -226,27 +226,27 @@ function renderCompletionScreen(set){
     </div>
     `;
 
-    document.getElementById('continue-btn').addEventListener('click', async ()=>{
-    const idsToReset = set.filter(c => missedCards.has(c.id)).map(c => c.id);
-    endDrillSession();
-    startDrillSession();
-    await resetMasteredSet(set, idsToReset);
+    document.getElementById('continue-btn').addEventListener('click', async () => {
+        const idsToReset = set.filter(c => missedCards.has(c.id)).map(c => c.id);
+        endDrillSession();
+        startDrillSession();
+        await resetMasteredSet(set, idsToReset);
     });
 }
 
-async function grade(correct){
+async function grade(correct) {
     sessionTotal++;
-    if(correct) sessionCorrect++;
-    if(correct) attemptCorrect++; else attemptMiss++;
+    if (correct) sessionCorrect++;
+    if (correct) attemptCorrect++; else attemptMiss++;
 
     const c = current;
-    if(!correct){
-    missedCards.set(c.id, (missedCards.get(c.id) || 0) + 1);
+    if (!correct) {
+        missedCards.set(c.id, (missedCards.get(c.id) || 0) + 1);
     }
     const res = await fetch(`/api/cards/${c.id}/grade`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({correct, set_key: state.currentFilter})
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correct, set_key: state.currentFilter })
     });
     const result = await res.json();
 
@@ -259,14 +259,14 @@ async function grade(correct){
     // leftover duplicate copies of its id out of the queue - otherwise a card
     // enqueued multiple times at its old weight can still surface later even
     // after it's no longer supposed to be in rotation.
-    if(pileWeight(c.pile) === 0){
-    queue = queue.filter(id => id !== c.id);
+    if (pileWeight(c.pile) === 0) {
+        queue = queue.filter(id => id !== c.id);
     }
 
     // Update local history to match the server's upserted "today" row.
-    let today = state.history.find(h=>h.date===result.today.date);
-    if(!today){ state.history.push(result.today); }
-    else{ today.correct = result.today.correct; today.total = result.today.total; }
+    let today = state.history.find(h => h.date === result.today.date);
+    if (!today) { state.history.push(result.today); }
+    else { today.correct = result.today.correct; today.total = result.today.total; }
 
     current = null;
     renderPileCounts();
@@ -274,13 +274,13 @@ async function grade(correct){
     renderHistory();
 }
 
-export function updateSessionTimer(){
+export function updateSessionTimer() {
     const el = document.getElementById('session-timer');
-    if(!el) return; // element not in DOM yet (shouldn't normally happen, but safe)
+    if (!el) return; // element not in DOM yet (shouldn't normally happen, but safe)
 
-    if(!sessionStartedAt){
-    el.textContent = '';
-    return;
+    if (!sessionStartedAt) {
+        el.textContent = '';
+        return;
     }
 
     const elapsedMs = Date.now() - new Date(sessionStartedAt).getTime();
@@ -288,16 +288,16 @@ export function updateSessionTimer(){
     el.textContent = formatElapsed(elapsedSeconds);
 }
 
-export function startDrillSession(){
-    if(!sessionStartedAt){
-    sessionStartedAt = new Date().toISOString();
-    attemptCorrect = 0;
-    attemptMiss = 0;
-    missedCards = new Map();
+export function startDrillSession() {
+    if (!sessionStartedAt) {
+        sessionStartedAt = new Date().toISOString();
+        attemptCorrect = 0;
+        attemptMiss = 0;
+        missedCards = new Map();
     }
 }
 
-export function endDrillSession(){
+export function endDrillSession() {
     sessionStartedAt = null;
     attemptCorrect = 0;
     attemptMiss = 0;
@@ -306,23 +306,22 @@ export function endDrillSession(){
     queue = [];
 }
 
-    // ---------- Set filter ----------
-document.getElementById('level-filter').addEventListener('change', async (e)=>{
+// ---------- Set filter ----------
+document.getElementById('level-filter').addEventListener('change', async (e) => {
     state.currentFilter = e.target.value;
-    try{ localStorage.setItem('drillFilter', state.currentFilter); }catch(err){}
+    try { localStorage.setItem('drillFilter', state.currentFilter); } catch (err) { }
     endDrillSession();
     startDrillSession();
     revealed = false;
 
-    if(state.currentFilter.startsWith('tag:')){
-    const tagId = state.currentFilter.slice(4);
-    const members = await fetchSetMembers(tagId);
-    state.tagFilterIds = new Set(members.map(c=>c.id));
+    if (state.currentFilter.startsWith('tag:')) {
+        const tagId = state.currentFilter.slice(4);
+        const members = await fetchSetMembers(tagId);
+        state.tagFilterIds = new Set(members.map(c => c.id));
     } else {
-    state.tagFilterIds = null;
+        state.tagFilterIds = null;
     }
 
     await resetMasteredSet(filteredCards(), filteredCards().map(c => c.id));
-    
+
 });
-  
