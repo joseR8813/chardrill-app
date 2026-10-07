@@ -6,12 +6,12 @@ import { renderPileCounts, buildQueueIfNeeded } from './drill.js';
  // ---------- Manage tab ----------
 export function renderCharList(){
     const el = document.getElementById('char-list');
-    const set = state.cards;
-    if(!set.length){
+    const allCards = state.cards;
+    if(!allCards.length){
       el.innerHTML = '<div class="empty-note">No characters in this set yet.</div>';
       return;
     }
-    el.innerHTML = set.slice().reverse().map(c => `
+    el.innerHTML = allCards.slice().reverse().map(c => `
       <div class="char-row">
         <div class="hz">${escapeHtml(c.hz)}</div>
         <div class="meta">${renderSenses(c)}</div>
