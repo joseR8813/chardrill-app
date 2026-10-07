@@ -1,5 +1,6 @@
 import { escapeHtml } from './utils.js';
 import { renderSenses } from './cardview.js';
+import { fetchSetMembers } from './api.js';
 
 export async function loadTags(){
     try{
@@ -74,8 +75,7 @@ export async function loadTags(){
 
   async function loadSetMembers(){
     if(!currentTagId) return;
-    const res = await fetch(`/api/tags/${currentTagId}/cards`);
-    const members = await res.json();
+    const members = await fetchSetMembers(currentTagId);
     document.getElementById('tag-count').textContent = `${members.length} cards`;
 
     const el = document.getElementById('set-members');
@@ -122,8 +122,7 @@ export async function loadTags(){
 
     let memberIds = new Set();
     if(currentTagId){
-      const memberRes = await fetch(`/api/tags/${currentTagId}/cards`);
-      const members = await memberRes.json();
+      const members = await fetchSetMembers(currentTagId);
       memberIds = new Set(members.map(c=>c.id));
     }
 

@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { fetchSetMembers } from './api.js';
 
 export function filteredCards(){
     if(state.currentFilter === 'all') return state.cards;
@@ -16,9 +17,7 @@ export async function restoreFilter(){
     if(saved.startsWith('tag:')){
       const tagId = saved.slice(4);
       try{
-        const res = await fetch(`/api/tags/${tagId}/cards`);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const members = await res.json();
+        const members = await fetchSetMembers(tagId);
         state.tagFilterIds = new Set(members.map(c=>c.id));
       }catch(err){
         console.warn('restoreFilter: could not load saved set, showing all cards', err);
