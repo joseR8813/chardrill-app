@@ -19,7 +19,7 @@ Then open http://127.0.0.1:5000 in your browser.
 """
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timezone
 from tone_simplifier import strip_tones
 
 from flask import Flask, g, jsonify, render_template, request
@@ -281,6 +281,20 @@ def grade_card(card_id):
                total = total + 1""",
         (today, 1 if correct else 0),
     )
+
+    # Per-card review log: one row per grade (card history, phase 1).
+    db.execute(
+        """INSERT INTO card_reviews (card_id, reviewed_at, correct, pile_before, set_key)
+           VALUES (?, ?, ?, ?, ?)""",
+        (
+            card_id,
+            datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            1 if correct else 0,
+            row["pile"],
+            data.get("set_key"),
+        ),
+    )
+
     db.commit()
 
     today_row = db.execute("SELECT date, correct, total FROM history WHERE date = ?", (today,)).fetchone()

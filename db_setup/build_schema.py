@@ -1,6 +1,6 @@
 """
 build_schema.py
-Creates the five tables for the Chinese character drill app in chardrill.db.
+Creates the eight tables for the Chinese character drill app in chardrill.db.
 Safe to run multiple times — uses CREATE TABLE IF NOT EXISTS.
 """
 
@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS senses (
     meaning     TEXT,
     classifier  TEXT,               -- measure word, e.g. 個/隻 - unused for now, fine blank
     "order"     INTEGER NOT NULL DEFAULT 0,
+    audio_file  TEXT,               -- filename only; the files live on disk, attach_senses() builds the URL
     FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
 );
 """)
@@ -106,6 +107,29 @@ CREATE TABLE IF NOT EXISTS completed_sessions (
     correct_count     INTEGER NOT NULL DEFAULT 0,
     miss_count        INTEGER NOT NULL DEFAULT 0
 );
+""")
+
+# --- card_reviews ----------------------------------------------------------
+# One row per grade, per card. The raw history behind Missed Today, the
+# per-card timeline and progression views. reviewed_at is UTC ISO; read
+# "today" with date(reviewed_at, 'localtime'). pile_before separates a
+# first sighting from a forgotten card; set_key is the set it was drilled in.
+# Deleting a card deletes its reviews (merge duplicates: move them first).
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS card_reviews (
+    id           INTEGER PRIMARY KEY,
+    card_id      INTEGER NOT NULL,
+    reviewed_at  TEXT    NOT NULL,
+    correct      INTEGER NOT NULL CHECK (correct IN (0, 1)),
+    pile_before  TEXT,
+    set_key      TEXT,
+    FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+);
+""")
+
+cursor.execute("""
+CREATE INDEX IF NOT EXISTS idx_card_reviews_card
+    ON card_reviews(card_id, reviewed_at);
 """)
 
 conn.commit()

@@ -566,7 +566,7 @@
     const res = await fetch(`/api/cards/${c.id}/grade`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({correct})
+      body: JSON.stringify({correct, set_key: currentFilter})
     });
     const result = await res.json();
 
