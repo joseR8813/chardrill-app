@@ -74,7 +74,7 @@ function nextCard(){
     return state.cards.find(c=>c.id===id) || null;
 }
 
-async function completeSession(set){
+async function completeSession(){
     try{
     await fetch('/api/sessions', {
         method: 'POST',
@@ -137,7 +137,7 @@ export function renderDrill(){
         }
 
         if(sessionStartedAt){
-        completeSession(set); // logging only now - piles aren't touched until Continue
+        completeSession(); // logging only now - piles aren't touched until Continue
         }
         renderCompletionScreen(set);
         return;
