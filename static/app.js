@@ -7,9 +7,9 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     tagFilterIds: null, // Set of card ids, only populated when currentFilter is 'tag:<id>'
     history: [], // [{date:'YYYY-MM-DD', correct:n, total:n}]
     currentFilter: 'all', // 'all' | 'L0'..'L5' | 'custom' | 'tag:<id>'
+    cards: [], // every card from /api/cards
   };
 
-  let cards = [];
   let queue = [];
   let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
   let current = null;
@@ -21,7 +21,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
 
   function buildCardByHz(){
   state.cardByHz = new Map();
-  cards.forEach(c => {
+  state.cards.forEach(c => {
     if(!state.cardByHz.has(c.hz)){
       state.cardByHz.set(c.hz, c);
     }
@@ -29,10 +29,10 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
 }
 
   function filteredCards(){
-    if(state.currentFilter === 'all') return cards;
-    if(state.currentFilter === 'custom') return cards.filter(c => !c.level);
-    if(state.currentFilter.startsWith('tag:')) return state.tagFilterIds ? cards.filter(c => state.tagFilterIds.has(c.id)) : [];
-    return cards.filter(c => c.level === state.currentFilter);
+    if(state.currentFilter === 'all') return state.cards;
+    if(state.currentFilter === 'custom') return state.cards.filter(c => !c.level);
+    if(state.currentFilter.startsWith('tag:')) return state.tagFilterIds ? state.cards.filter(c => state.tagFilterIds.has(c.id)) : [];
+    return state.cards.filter(c => c.level === state.currentFilter);
   }
 
   async function restoreFilter(){
@@ -74,8 +74,8 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   async function loadAll(){
   try{
     const res = await fetch('/api/cards');
-    cards = await res.json();
-  }catch(e){ cards = []; }
+    state.cards = await res.json();
+  }catch(e){ state.cards = []; }
   buildCardByHz();
 
   try{
@@ -307,7 +307,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   // ---------- Manage tab ----------
   function renderCharList(){
     const el = document.getElementById('char-list');
-    const set = cards;
+    const set = state.cards;
     if(!set.length){
       el.innerHTML = '<div class="empty-note">No characters in this set yet.</div>';
       return;
@@ -324,7 +324,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
       btn.addEventListener('click', async ()=>{
         const id = Number(btn.dataset.id);
         await fetch(`/api/cards/${id}`, { method: 'DELETE' });
-        cards = cards.filter(c=>c.id !== id);
+        state.cards = state.cards.filter(c=>c.id !== id);
         buildCardByHz();
         renderCharList(); renderPileCounts(); buildQueueIfNeeded();
       });
@@ -343,7 +343,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
       body: JSON.stringify({hz, zy, py, mn})
     });
     const newCard = await res.json();
-    cards.push(newCard);
+    state.cards.push(newCard);
     buildCardByHz();
     
     document.querySelector('input[name=hz]').value='';
@@ -391,7 +391,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     if(!queue.length) buildQueue();
     if(!queue.length) return null;
     const id = queue.pop();
-    return cards.find(c=>c.id===id) || null;
+    return state.cards.find(c=>c.id===id) || null;
   }
 
   async function completeSession(set){
@@ -426,7 +426,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     });
     const updated = await res.json();
     updated.forEach(u => {
-      const c = cards.find(c=>c.id===u.id);
+      const c = state.cards.find(c=>c.id===u.id);
       if(c){ c.pile = u.pile; c.streak = u.streak; }
     });
     queue = [];
@@ -521,7 +521,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     const root = document.getElementById('drill-root');
 
     const missedRows = Array.from(missedCards.entries()).map(([id, count]) => {
-      const card = cards.find(c => c.id === id);
+      const card = state.cards.find(c => c.id === id);
       const hz = card ? card.hz : '?';
       return `
         <div class="char-row">
