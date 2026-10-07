@@ -1,6 +1,5 @@
 (function(){
   // pile: 'new' -> 'practice' -> 'mastered'
-  // demotion: any miss in mastered -> practice; any miss in practice stays practice (streak resets)
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
   let cards = [];
@@ -15,6 +14,16 @@
   let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
   let tagFilterIds = null; // Set of card ids, only populated when currentFilter is 'tag:<id>'
   let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
+  let cardByHz = new Map(); // hz -> card, for compound breakdowns
+
+  function buildCardByHz(){
+    cardByHz = new Map();
+    cards.forEach(c => {
+      if(!cardByHz.has(c.hz)){
+        cardByHz.set(c.hz, c);
+      }
+    });
+  }
 
   function filteredCards(){
     if(currentFilter === 'all') return cards;
@@ -64,6 +73,8 @@
     const res = await fetch('/api/cards');
     cards = await res.json();
   }catch(e){ cards = []; }
+  buildCardByHz();
+
   try{
     const res = await fetch('/api/history');
     history = await res.json();
@@ -145,14 +156,14 @@
     await loadSetMembers();
   }
 
-    function renderSenses(card, showZy = true){
-  const senses = (card.senses && card.senses.length)
-    ? card.senses
-    : [{py: card.py, zy: card.zy, pos: card.pos, meaning: card.mn}];
+  function renderSenses(card, showZy = true){
+    const senses = (card.senses && card.senses.length)
+      ? card.senses
+      : [{py: card.py, zy: card.zy, pos: card.pos, meaning: card.mn}];
 
-  if(senses.length === 1){
-    const s = senses[0];
-    return `${(showZy && s.zy) ? `<span class="zy">${escapeHtml(s.zy)}</span> · ` : ''}<span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}`;
+    if(senses.length === 1){
+      const s = senses[0];
+      return `${(showZy && s.zy) ? `<span class="zy">${escapeHtml(s.zy)}</span> · ` : ''}<span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}`;
   }
 
   return senses.map((s, i) => `
@@ -163,6 +174,33 @@
       <span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}
     </div>
   `).join('');
+  }
+
+  function renderBreakdown(card){
+    const chars = [...card.hz];
+    if(chars.length < 2) return '';
+
+    const rows = chars.map(ch => {
+      const root = cardByHz.get(ch);
+      if(!root){
+        return `
+          <div class="breakdown-row">
+            <span class="breakdown-hz">${escapeHtml(ch)}</span>
+            <span class="breakdown-missing">not in library</span>
+          </div>`;
+      }
+      return `
+        <div class="breakdown-row">
+          <span class="breakdown-hz">${escapeHtml(root.hz)}</span>
+          <div class="breakdown-meta">${renderSenses(root)}</div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="breakdown">
+        <div class="breakdown-label">Built from</div>
+        ${rows}
+      </div>`;
   }
 
   async function loadSetMembers(){
@@ -284,6 +322,7 @@
         const id = Number(btn.dataset.id);
         await fetch(`/api/cards/${id}`, { method: 'DELETE' });
         cards = cards.filter(c=>c.id !== id);
+        buildCardByHz();
         renderCharList(); renderPileCounts(); buildQueueIfNeeded();
       });
     });
@@ -306,6 +345,8 @@
     });
     const newCard = await res.json();
     cards.push(newCard);
+    buildCardByHz();
+    
     document.querySelector('input[name=hz]').value='';
     document.querySelector('input[name=zy]').value='';
     document.querySelector('input[name=py]').value='';
@@ -447,7 +488,7 @@
           ` : ''}
         </div>
         <div class="flash-answer" id="answer-area">
-          ${revealed ? renderSenses(current, false) : ''}
+           ${revealed ? renderSenses(current, false) + renderBreakdown(current) : ''}
         </div>
         ${revealed ? `
           <div class="grade-row">
