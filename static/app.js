@@ -3,6 +3,7 @@ import { state, buildCardByHz } from './js/state.js';
 import { renderSenses, renderBreakdown } from './js/cardview.js';
 import { loadTodaysSessions, renderHistory } from './js/history.js';
 import { loadTags } from './js/sets.js';
+import { filteredCards, restoreFilter } from './js/filter.js';
   // pile: 'new' -> 'practice' -> 'mastered'
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
@@ -15,49 +16,6 @@ import { loadTags } from './js/sets.js';
   let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built for the current filter
   let revealed = false;
   let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
-
-  function filteredCards(){
-    if(state.currentFilter === 'all') return state.cards;
-    if(state.currentFilter === 'custom') return state.cards.filter(c => !c.level);
-    if(state.currentFilter.startsWith('tag:')) return state.tagFilterIds ? state.cards.filter(c => state.tagFilterIds.has(c.id)) : [];
-    return state.cards.filter(c => c.level === state.currentFilter);
-  }
-
-  async function restoreFilter(){
-    // 1. read the saved value
-    let saved = null;
-    try{ saved = localStorage.getItem('drillFilter'); }catch(err){}
-    if(!saved) return;
-
-    if(saved.startsWith('tag:')){
-      const tagId = saved.slice(4);
-      try{
-        const res = await fetch(`/api/tags/${tagId}/cards`);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const members = await res.json();
-        state.tagFilterIds = new Set(members.map(c=>c.id));
-      }catch(err){
-        console.warn('restoreFilter: could not load saved set, showing all cards', err);
-        state.tagFilterIds = null;
-        return;
-      }
-    } else {
-      state.tagFilterIds = null;
-    }
-
-    // 3. put the value into the dropdown
-    const select = document.getElementById('level-filter');
-    select.value = saved;
-
-    // 4. did it take? if not, clean up and stay on 'all'
-    if(select.value !== saved){
-      try{ localStorage.removeItem('drillFilter'); }catch(err){}
-      state.tagFilterIds = null;
-      select.value = 'all';
-      return;
-    }
-    state.currentFilter = saved;
-  }
 
   async function loadAll(){
   try{
