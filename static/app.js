@@ -3,7 +3,8 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
   const state = {
-    cardByHz: new Map(), //hz -> for compound breakdowns
+    cardByHz: new Map(), //hz -> for compound cards breakdowns
+    tagFilterIds: null, // Set of card ids, only populated when currentFilter is 'tag:<id>'
   };
 
   let cards = [];
@@ -16,7 +17,6 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built for the current filter
   let revealed = false;
   let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
-  let tagFilterIds = null; // Set of card ids, only populated when currentFilter is 'tag:<id>'
   let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
 
   function buildCardByHz(){
@@ -31,7 +31,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   function filteredCards(){
     if(currentFilter === 'all') return cards;
     if(currentFilter === 'custom') return cards.filter(c => !c.level);
-    if(currentFilter.startsWith('tag:')) return tagFilterIds ? cards.filter(c => tagFilterIds.has(c.id)) : [];
+    if(currentFilter.startsWith('tag:')) return state.tagFilterIds ? cards.filter(c => state.tagFilterIds.has(c.id)) : [];
     return cards.filter(c => c.level === currentFilter);
   }
 
@@ -47,14 +47,14 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
         const res = await fetch(`/api/tags/${tagId}/cards`);
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
         const members = await res.json();
-        tagFilterIds = new Set(members.map(c=>c.id));
+        state.tagFilterIds = new Set(members.map(c=>c.id));
       }catch(err){
         console.warn('restoreFilter: could not load saved set, showing all cards', err);
-        tagFilterIds = null;
+        state.tagFilterIds = null;
         return;
       }
     } else {
-      tagFilterIds = null;
+      state.tagFilterIds = null;
     }
 
     // 3. put the value into the dropdown
@@ -64,7 +64,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     // 4. did it take? if not, clean up and stay on 'all'
     if(select.value !== saved){
       try{ localStorage.removeItem('drillFilter'); }catch(err){}
-      tagFilterIds = null;
+      state.tagFilterIds = null;
       select.value = 'all';
       return;
     }
@@ -720,9 +720,9 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
       const tagId = currentFilter.slice(4);
       const res = await fetch(`/api/tags/${tagId}/cards`);
       const members = await res.json();
-      tagFilterIds = new Set(members.map(c=>c.id));
+      state.tagFilterIds = new Set(members.map(c=>c.id));
     } else {
-      tagFilterIds = null;
+      state.tagFilterIds = null;
     }
 
     await resetMasteredSet(filteredCards(), filteredCards().map(c => c.id));
