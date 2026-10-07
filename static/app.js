@@ -716,6 +716,7 @@
       document.getElementById('sec-'+tab.dataset.tab).classList.add('active');
 
       const newTab = tab.dataset.tab;
+      try{ localStorage.setItem('activeTab', newTab); }catch(err){}
 
       if(previousTab === 'drill' && newTab !== 'drill'){
         endDrillSession();
@@ -733,7 +734,18 @@
     renderDrill();
     renderHistory();
   }
+  let savedTab = null;
+  try{ savedTab = localStorage.getItem('activeTab'); }catch(err){}
 
+  if(savedTab){
+    const tabEl = document.querySelector(`.tab[data-tab="${savedTab}"]`);
+    if(tabEl){
+      tabEl.click();
+    } else {
+      try{ localStorage.removeItem('activeTab'); }catch(err){}
+    }
+  }
+  
   if(document.querySelector('.tab.active')?.dataset.tab === 'drill'){
     startDrillSession();
   }
