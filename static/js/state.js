@@ -1,5 +1,5 @@
 export const state = {
-    cardByHz: new Map(), //hz -> for compound cards breakdowns
+    cardByHz: new Map(), // hz -> card, for compound breakdowns
     tagFilterIds: null, // Set of card ids, only populated when currentFilter is 'tag:<id>'
     history: [], // [{date:'YYYY-MM-DD', correct:n, total:n}]
     currentFilter: 'all', // 'all' | 'L0'..'L5' | 'custom' | 'tag:<id>'

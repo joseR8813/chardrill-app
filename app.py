@@ -10,7 +10,7 @@ several senses). Card routes return each card's own fields plus a `senses`
 list, added by attach_senses() and ordered by `order` (primary sense first).
 
 Exception: POST /api/cards still returns the old flat shape
-({id, hz, zy, py, mn, ...}). renderSenses() in app.js falls back to those
+({id, hz, zy, py, mn, ...}). renderSenses() in static/js/cardview.js falls back to those
 flat fields when a card has no `senses` list.
 
 Run with:
