@@ -1,4 +1,4 @@
-(function(){
+
   // pile: 'new' -> 'practice' -> 'mastered'
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
@@ -799,4 +799,3 @@
 
   loadTags().then(loadAll);
   setInterval(updateSessionTimer, 1000);
-})();
