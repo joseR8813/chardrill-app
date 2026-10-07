@@ -6,6 +6,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     cardByHz: new Map(), //hz -> for compound cards breakdowns
     tagFilterIds: null, // Set of card ids, only populated when currentFilter is 'tag:<id>'
     history: [], // [{date:'YYYY-MM-DD', correct:n, total:n}]
+    currentFilter: 'all', // 'all' | 'L0'..'L5' | 'custom' | 'tag:<id>'
   };
 
   let cards = [];
@@ -16,7 +17,6 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   let attemptCorrect = 0, attemptMiss = 0;
   let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built for the current filter
   let revealed = false;
-  let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
   let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
 
   function buildCardByHz(){
@@ -29,10 +29,10 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
 }
 
   function filteredCards(){
-    if(currentFilter === 'all') return cards;
-    if(currentFilter === 'custom') return cards.filter(c => !c.level);
-    if(currentFilter.startsWith('tag:')) return state.tagFilterIds ? cards.filter(c => state.tagFilterIds.has(c.id)) : [];
-    return cards.filter(c => c.level === currentFilter);
+    if(state.currentFilter === 'all') return cards;
+    if(state.currentFilter === 'custom') return cards.filter(c => !c.level);
+    if(state.currentFilter.startsWith('tag:')) return state.tagFilterIds ? cards.filter(c => state.tagFilterIds.has(c.id)) : [];
+    return cards.filter(c => c.level === state.currentFilter);
   }
 
   async function restoreFilter(){
@@ -68,7 +68,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
       select.value = 'all';
       return;
     }
-    currentFilter = saved;
+    state.currentFilter = saved;
   }
 
   async function loadAll(){
@@ -365,7 +365,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
 
   function getSetLabel(){
   const select = document.getElementById('level-filter');
-  return select.selectedOptions[0]?.textContent || currentFilter;
+  return select.selectedOptions[0]?.textContent || state.currentFilter;
   }
 
   function buildQueue(){
@@ -400,7 +400,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          set_key: currentFilter,
+          set_key: state.currentFilter,
           set_label: getSetLabel(),
           started_at: sessionStartedAt,
           completed_at: new Date().toISOString(),
@@ -565,7 +565,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     const res = await fetch(`/api/cards/${c.id}/grade`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({correct, set_key: currentFilter})
+      body: JSON.stringify({correct, set_key: state.currentFilter})
     });
     const result = await res.json();
 
@@ -710,14 +710,14 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
 
    // ---------- Set filter ----------
   document.getElementById('level-filter').addEventListener('change', async (e)=>{
-    currentFilter = e.target.value;
-    try{ localStorage.setItem('drillFilter', currentFilter); }catch(err){}
+    state.currentFilter = e.target.value;
+    try{ localStorage.setItem('drillFilter', state.currentFilter); }catch(err){}
     endDrillSession();
     startDrillSession();
     revealed = false;
 
-    if(currentFilter.startsWith('tag:')){
-      const tagId = currentFilter.slice(4);
+    if(state.currentFilter.startsWith('tag:')){
+      const tagId = state.currentFilter.slice(4);
       const res = await fetch(`/api/tags/${tagId}/cards`);
       const members = await res.json();
       state.tagFilterIds = new Set(members.map(c=>c.id));
