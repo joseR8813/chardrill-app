@@ -1,4 +1,4 @@
-
+import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/utils.js';
   // pile: 'new' -> 'practice' -> 'mastered'
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
@@ -328,10 +328,6 @@
     });
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-
   document.getElementById('add-btn').addEventListener('click', async ()=>{
     const hz = document.querySelector('input[name=hz]').value.trim();
     const zy = document.querySelector('input[name=zy]').value.trim();
@@ -354,7 +350,7 @@
     document.querySelector('input[name=hz]').focus();
     renderCharList(); renderPileCounts(); buildQueueIfNeeded();
   });
-
+  
   // ---------- Drill tab ----------
   function pileWeight(pile){
     // mastered cards are excluded from the drill pool entirely (0) - once you know
@@ -619,21 +615,6 @@
     });
   }
 
-  function formatDuration(seconds){
-    if(seconds < 60) return `${seconds}s`;
-    const m = Math.floor(seconds/60);
-    const s = seconds % 60;
-    return `${m}m ${s}s`;
-  }
-
-  function formatElapsed(totalSeconds){
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    const pad = n => String(n).padStart(2, '0');
-    return `${h}:${pad(m)}:${pad(s)}`;
-  }
-
   function updateSessionTimer(){
     const el = document.getElementById('session-timer');
     if(!el) return; // element not in DOM yet (shouldn't normally happen, but safe)
@@ -664,13 +645,6 @@
     missedCards = new Map();
     current = null;
     queue = [];
-  }
-
-  function localDateKey(d){
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
   }
 
   // ---------- History tab ----------
