@@ -4,13 +4,14 @@ app.py - Flask backend for the character drill app.
 Serves the frontend (templates/index.html + static/) and exposes a small
 JSON API backed by chardrill.db.
 
-API responses are deliberately shaped like the OLD flat card object
-({id, hz, zy, py, mn, pile, streak}) that the original Claude artifact used,
-even though the real schema stores py/zy/meaning on a separate `senses` table
-(one card can have multiple senses). Each card's "primary" sense - the one
-with the lowest `order` value - is the one exposed here. This keeps the
-frontend's rendering code almost untouched; only the load/save/add/delete/
-grade logic needed to change to call these routes instead of window.storage.
+Cards and their readings live in separate tables: `cards` holds the
+character and its pile, `senses` holds py/zy/meaning (one card can have
+several senses). Card routes return each card's own fields plus a `senses`
+list, added by attach_senses() and ordered by `order` (primary sense first).
+
+Exception: POST /api/cards still returns the old flat shape
+({id, hz, zy, py, mn, ...}). renderSenses() in app.js falls back to those
+flat fields when a card has no `senses` list.
 
 Run with:
     python app.py
@@ -53,8 +54,6 @@ def index():
 
 # ---------- Cards ----------
 
-# Every card, joined to its primary sense (lowest `order`).
-# Uses a window function to rank each card's senses, then keeps rank 1.
 CARDS_BASE = """
     SELECT id, hz, level, source, pile, streak
     FROM cards
