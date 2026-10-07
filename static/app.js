@@ -1,14 +1,9 @@
 import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/utils.js';
+import { state, buildCardByHz } from './js/state.js';
+import { renderSenses, renderBreakdown } from './js/cardview.js';
   // pile: 'new' -> 'practice' -> 'mastered'
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
-  const state = {
-    cardByHz: new Map(), //hz -> for compound cards breakdowns
-    tagFilterIds: null, // Set of card ids, only populated when currentFilter is 'tag:<id>'
-    history: [], // [{date:'YYYY-MM-DD', correct:n, total:n}]
-    currentFilter: 'all', // 'all' | 'L0'..'L5' | 'custom' | 'tag:<id>'
-    cards: [], // every card from /api/cards
-  };
 
   let queue = [];
   let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
@@ -18,15 +13,6 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   let sessionStartedAt = null; // ISO timestamp, set when a fresh queue is built for the current filter
   let revealed = false;
   let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
-
-  function buildCardByHz(){
-  state.cardByHz = new Map();
-  state.cards.forEach(c => {
-    if(!state.cardByHz.has(c.hz)){
-      state.cardByHz.set(c.hz, c);
-    }
-  });
-}
 
   function filteredCards(){
     if(state.currentFilter === 'all') return state.cards;
@@ -157,53 +143,6 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     currentTagId = tagId;
     document.getElementById('set-label').textContent = `In "${tagName}"`;
     await loadSetMembers();
-  }
-
-  function renderSenses(card, showZy = true){
-    const senses = (card.senses && card.senses.length)
-      ? card.senses
-      : [{py: card.py, zy: card.zy, pos: card.pos, meaning: card.mn}];
-
-    if(senses.length === 1){
-      const s = senses[0];
-      return `${(showZy && s.zy) ? `<span class="zy">${escapeHtml(s.zy)}</span> · ` : ''}<span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}`;
-  }
-
-  return senses.map((s, i) => `
-    <div class="sense-row">
-      <span class="sense-num">${i+1}.</span>
-      ${s.pos ? `<span class="pos">(${escapeHtml(s.pos)})</span> ` : ''}
-      ${(showZy && s.zy) ? `<span class="zy">${escapeHtml(s.zy)}</span> · ` : ''}
-      <span class="py">${escapeHtml(s.py)}</span> — ${escapeHtml(s.meaning)}
-    </div>
-  `).join('');
-  }
-
-  function renderBreakdown(card){
-    const chars = [...card.hz];
-    if(chars.length < 2) return '';
-
-    const rows = chars.map(ch => {
-      const root = state.cardByHz.get(ch);
-      if(!root){
-        return `
-          <div class="breakdown-row">
-            <span class="breakdown-hz">${escapeHtml(ch)}</span>
-            <span class="breakdown-missing">not in library</span>
-          </div>`;
-      }
-      return `
-        <div class="breakdown-row">
-          <span class="breakdown-hz">${escapeHtml(root.hz)}</span>
-          <div class="breakdown-meta">${renderSenses(root)}</div>
-        </div>`;
-    }).join('');
-
-    return `
-      <div class="breakdown">
-        <div class="breakdown-label">Built from</div>
-        ${rows}
-      </div>`;
   }
 
   async function loadSetMembers(){
