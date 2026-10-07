@@ -1,7 +1,7 @@
 import { state, buildCardByHz } from './state.js';
 import { escapeHtml } from './utils.js';
 import { renderSenses } from './cardview.js';
-import { renderPileCounts, buildQueueIfNeeded } from '../app.js'; // temporary: becomes './drill.js' in step 8
+import { renderPileCounts, buildQueueIfNeeded } from './drill.js';
 
  // ---------- Manage tab ----------
 export function renderCharList(){
