@@ -2,6 +2,10 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   // pile: 'new' -> 'practice' -> 'mastered'
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
+  const state = {
+    cardByHz: new Map(), //hz -> for compound breakdowns
+  };
+
   let cards = [];
   let history = []; // [{date:'YYYY-MM-DD', correct:n, total:n}]
   let queue = [];
@@ -14,16 +18,15 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   let currentFilter = 'all'; // 'all' | 'L0'..'L5' | 'custom'
   let tagFilterIds = null; // Set of card ids, only populated when currentFilter is 'tag:<id>'
   let missedCards = new Map(); // card id -> miss count, this session only (Missed-Cards Tracking, Direction B)
-  let cardByHz = new Map(); // hz -> card, for compound breakdowns
 
   function buildCardByHz(){
-    cardByHz = new Map();
-    cards.forEach(c => {
-      if(!cardByHz.has(c.hz)){
-        cardByHz.set(c.hz, c);
-      }
-    });
-  }
+  state.cardByHz = new Map();
+  cards.forEach(c => {
+    if(!state.cardByHz.has(c.hz)){
+      state.cardByHz.set(c.hz, c);
+    }
+  });
+}
 
   function filteredCards(){
     if(currentFilter === 'all') return cards;
@@ -181,7 +184,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     if(chars.length < 2) return '';
 
     const rows = chars.map(ch => {
-      const root = cardByHz.get(ch);
+      const root = state.cardByHz.get(ch);
       if(!root){
         return `
           <div class="breakdown-row">
@@ -350,7 +353,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     document.querySelector('input[name=hz]').focus();
     renderCharList(); renderPileCounts(); buildQueueIfNeeded();
   });
-  
+
   // ---------- Drill tab ----------
   function pileWeight(pile){
     // mastered cards are excluded from the drill pool entirely (0) - once you know
