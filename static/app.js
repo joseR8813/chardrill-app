@@ -5,10 +5,10 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
   const state = {
     cardByHz: new Map(), //hz -> for compound cards breakdowns
     tagFilterIds: null, // Set of card ids, only populated when currentFilter is 'tag:<id>'
+    history: [], // [{date:'YYYY-MM-DD', correct:n, total:n}]
   };
 
   let cards = [];
-  let history = []; // [{date:'YYYY-MM-DD', correct:n, total:n}]
   let queue = [];
   let audioPlayer = new Audio(); // shared <audio> element, reused across taps/cards
   let current = null;
@@ -80,8 +80,8 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
 
   try{
     const res = await fetch('/api/history');
-    history = await res.json();
-  }catch(e){ history = []; }
+    state.history = await res.json();
+  }catch(e){ state.history = []; }
   await loadTodaysSessions();
   await restoreFilter(); 
   await resetMasteredSet(filteredCards(), filteredCards().map(c => c.id));
@@ -583,8 +583,8 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     }
 
     // Update local history to match the server's upserted "today" row.
-    let today = history.find(h=>h.date===result.today.date);
-    if(!today){ history.push(result.today); }
+    let today = state.history.find(h=>h.date===result.today.date);
+    if(!today){ state.history.push(result.today); }
     else{ today.correct = result.today.correct; today.total = result.today.total; }
 
     current = null;
@@ -658,7 +658,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     for(let i=13;i>=0;i--){
       const d = new Date(now); d.setDate(d.getDate()-i);
       const key = localDateKey(d);
-      const entry = history.find(h=>h.date===key);
+      const entry = state.history.find(h=>h.date===key);
       last14.push({date:key, correct: entry?entry.correct:0, total: entry?entry.total:0});
     }
     const max = Math.max(1, ...last14.map(d=>d.total));
@@ -668,7 +668,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
       return `<div class="hist-bar-wrap"><div class="hist-bar" style="height:${h}px;" title="${d.correct}/${d.total}"></div><div class="hist-lbl">${lbl}</div></div>`;
     }).join('');
 
-    const recentLog = history.slice().reverse().slice(0,10).map(h=>`
+    const recentLog = state.history.slice().reverse().slice(0,10).map(h=>`
       <div class="row"><div class="d">${h.date}</div><div class="s">${h.correct}/${h.total} correct</div></div>
     `).join('') || '<div class="empty-note">No sessions logged yet.</div>';
 
@@ -703,7 +703,7 @@ import { escapeHtml, formatDuration, formatElapsed, localDateKey } from './js/ut
     document.getElementById('reset-hist-btn').addEventListener('click', async ()=>{
       if(!confirm('Clear all history? This cannot be undone.')) return;
       await fetch('/api/history/reset', { method: 'POST' });
-      history = [];
+      state.history = [];
       renderHistory();
     });
   }
