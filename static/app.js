@@ -4,6 +4,7 @@ import { renderSenses, renderBreakdown } from './js/cardview.js';
 import { loadTodaysSessions, renderHistory } from './js/history.js';
 import { loadTags } from './js/sets.js';
 import { filteredCards, restoreFilter } from './js/filter.js';
+import { renderCharList } from './js/manage.js';
   // pile: 'new' -> 'practice' -> 'mastered'
   // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
   //  this file just displays whatever pile/streak the server hands back.)
@@ -43,62 +44,12 @@ import { filteredCards, restoreFilter } from './js/filter.js';
     };
   }
 
-  function renderPileCounts(){
+  export function renderPileCounts(){
     const c = counts();
     document.getElementById('count-new').textContent = c.new;
     document.getElementById('count-practice').textContent = c.practice;
     document.getElementById('count-mastered').textContent = c.mastered;
   }
-
-  // ---------- Manage tab ----------
-  function renderCharList(){
-    const el = document.getElementById('char-list');
-    const set = state.cards;
-    if(!set.length){
-      el.innerHTML = '<div class="empty-note">No characters in this set yet.</div>';
-      return;
-    }
-    el.innerHTML = set.slice().reverse().map(c => `
-      <div class="char-row">
-        <div class="hz">${escapeHtml(c.hz)}</div>
-        <div class="meta">${renderSenses(c)}</div>
-        <div class="pile-tag ${c.pile}">${c.pile}</div>
-        <button class="del" data-id="${c.id}" title="Remove">✕</button>
-      </div>
-    `).join('');
-    el.querySelectorAll('.del').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const id = Number(btn.dataset.id);
-        await fetch(`/api/cards/${id}`, { method: 'DELETE' });
-        state.cards = state.cards.filter(c=>c.id !== id);
-        buildCardByHz();
-        renderCharList(); renderPileCounts(); buildQueueIfNeeded();
-      });
-    });
-  }
-
-  document.getElementById('add-btn').addEventListener('click', async ()=>{
-    const hz = document.querySelector('input[name=hz]').value.trim();
-    const zy = document.querySelector('input[name=zy]').value.trim();
-    const py = document.querySelector('input[name=py]').value.trim();
-    const mn = document.querySelector('input[name=mn]').value.trim();
-    if(!hz || !py || !mn) return;
-    const res = await fetch('/api/cards', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({hz, zy, py, mn})
-    });
-    const newCard = await res.json();
-    state.cards.push(newCard);
-    buildCardByHz();
-    
-    document.querySelector('input[name=hz]').value='';
-    document.querySelector('input[name=zy]').value='';
-    document.querySelector('input[name=py]').value='';
-    document.querySelector('input[name=mn]').value='';
-    document.querySelector('input[name=hz]').focus();
-    renderCharList(); renderPileCounts(); buildQueueIfNeeded();
-  });
 
   // ---------- Drill tab ----------
   function pileWeight(pile){
@@ -128,7 +79,7 @@ import { filteredCards, restoreFilter } from './js/filter.js';
     queue = pool;
   }
 
-  function buildQueueIfNeeded(){
+  export function buildQueueIfNeeded(){
     if(!queue.length) buildQueue();
   }
 
