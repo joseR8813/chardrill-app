@@ -8,33 +8,33 @@ export function filteredCards() {
     return state.cards.filter(c => c.level === state.currentFilter);
 }
 
+// Card ids for filters that need a server lookup ('tag:<id>', 'missed:today').
+// Returns null for filters filteredCards() handles on its own (all, levels, custom).
+// Throws if the fetch fails, so callers decide how to handle that.
+export async function loadFilterIds(filter) {
+    if (filter.startsWith('tag:')) {
+        const members = await fetchSetMembers(filter.slice(4));
+        return new Set(members.map(c => c.id));
+    }
+    if (filter === 'missed:today') {
+        const members = await fetchMissedToday();
+        return new Set(members.map(c => c.id));
+    }
+    return null;
+}
+
 export async function restoreFilter() {
     // 1. read the saved value
     let saved = null;
     try { saved = localStorage.getItem('drillFilter'); } catch (err) { }
     if (!saved) return;
 
-    if (saved.startsWith('tag:')) {
-        const tagId = saved.slice(4);
-        try {
-            const members = await fetchSetMembers(tagId);
-            state.tagFilterIds = new Set(members.map(c => c.id));
-        } catch (err) {
-            console.warn('restoreFilter: could not load saved set, showing all cards', err);
-            state.tagFilterIds = null;
-            return;
-        }
-    } else if (saved === 'missed:today') {
-        try {
-            const members = await fetchMissedToday();
-            state.tagFilterIds = new Set(members.map(c => c.id));
-        } catch (err) {
-            console.warn('restoreFilter: could not load missed cards, showing all cards', err);
-            state.tagFilterIds = null;
-            return;
-        }
-    } else {
+     try {
+        state.tagFilterIds = await loadFilterIds(saved);
+    } catch (err) {
+        console.warn('restoreFilter: could not load saved set, showing all cards', err);
         state.tagFilterIds = null;
+        return;
     }
 
     // 3. put the value into the dropdown
