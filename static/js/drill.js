@@ -316,7 +316,7 @@ document.getElementById('level-filter').addEventListener('change', async (e) => 
     startDrillSession();
     revealed = false;
 
-    state.tagFilterIds = await loadFilterIds(state.currentFilter);
+    state.filterIds = await loadFilterIds(state.currentFilter);
 
     await resetMasteredSet(filteredCards(), filteredCards().map(c => c.id));
 

@@ -4,7 +4,7 @@ import { fetchSetMembers, fetchMissedToday } from './api.js';
 export function filteredCards() {
     if (state.currentFilter === 'all') return state.cards;
     if (state.currentFilter === 'custom') return state.cards.filter(c => !c.level);
-    if (state.currentFilter.startsWith('tag:') || state.currentFilter === 'missed:today') return state.tagFilterIds ? state.cards.filter(c => state.tagFilterIds.has(c.id)) : [];
+    if (state.currentFilter.startsWith('tag:') || state.currentFilter === 'missed:today') return state.filterIds ? state.cards.filter(c => state.filterIds.has(c.id)) : [];
     return state.cards.filter(c => c.level === state.currentFilter);
 }
 
@@ -30,10 +30,10 @@ export async function restoreFilter() {
     if (!saved) return;
 
     try {
-        state.tagFilterIds = await loadFilterIds(saved);
+        state.filterIds = await loadFilterIds(saved);
     } catch (err) {
         console.warn('restoreFilter: could not load saved set, showing all cards', err);
-        state.tagFilterIds = null;
+        state.filterIds = null;
         return;
     }
 
@@ -44,7 +44,7 @@ export async function restoreFilter() {
     // 4. did it take? if not, clean up and stay on 'all'
     if (select.value !== saved) {
         try { localStorage.removeItem('drillFilter'); } catch (err) { }
-        state.tagFilterIds = null;
+        state.filterIds = null;
         select.value = 'all';
         return;
     }
