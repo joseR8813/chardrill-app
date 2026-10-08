@@ -121,7 +121,10 @@ export function renderDrill() {
     const root = document.getElementById('drill-root');
     const set = filteredCards();
     if (!set.length) {
-        root.innerHTML = '<div class="drill-empty">No characters in this set yet. Add some in the Characters tab, or pick a different set above.</div>';
+        const msg = state.currentFilter === 'missed:today'
+            ? 'Nothing missed today yet. Cards you miss in any set will show up here.'
+            : 'No characters in this set yet. Add some in Build set, or pick a different set above.';
+        root.innerHTML = `<div class="drill-empty">${msg}</div>`;
         return;
     }
     if (!current) {
