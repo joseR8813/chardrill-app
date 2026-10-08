@@ -7,25 +7,25 @@ const LESSONS = {
         audio: "/static/audio/reading/ch1_p1.wav",
         lines: [
           { hz: "A：先生，您貴姓？", zy: "ㄒㄧㄢ ㄕㄥ，ㄋㄧㄣˊ ㄍㄨㄟˋ ㄒㄧㄥˋ？", py: "Xiānsheng, nín guìxìng?" },
-        { hz: "B：我姓王。您貴姓？", zy: "ㄨㄛˇ ㄒㄧㄥˋ ㄨㄤˊ。ㄋㄧㄣˊ ㄍㄨㄟˋ ㄒㄧㄥˋ？", py: "Wǒ xìng Wáng. Nín guìxìng?" },
-        { hz: "A：我姓李，叫大衛。", zy: "ㄨㄛˇ ㄒㄧㄥˋ ㄌㄧˇ，ㄐㄧㄠˋ ㄉㄚˋ ㄨㄟˋ。", py: "Wǒ xìng Lǐ, jiào Dàwèi." },
-        { hz: "B：李先生，您好。", zy: "ㄌㄧˇ ㄒㄧㄢ ㄕㄥ，ㄋㄧㄣˊ ㄏㄠˇ。", py: "Lǐ Xiānsheng, nín hǎo." },
-        { hz: "A：您好。您是美國人嗎？", zy: "ㄋㄧㄣˊ ㄏㄠˇ。ㄋㄧㄣˊ ㄕˋ ㄇㄟˇ ㄍㄨㄛˊ ㄖㄣˊ ㄇㄚ˙？", py: "Nín hǎo. Nín shì Měiguó rén ma?" },
-        { hz: "B：不是，我是英國人。", zy: "ㄅㄨˊ ㄕˋ，ㄨㄛˇ ㄕˋ ㄧㄥ ㄍㄨㄛˊ ㄖㄣˊ。", py: "Búshì, wǒ shì Yīngguó rén." },
+          { hz: "B：我姓王。您貴姓？", zy: "ㄨㄛˇ ㄒㄧㄥˋ ㄨㄤˊ。ㄋㄧㄣˊ ㄍㄨㄟˋ ㄒㄧㄥˋ？", py: "Wǒ xìng Wáng. Nín guìxìng?" },
+          { hz: "A：我姓李，叫大衛。", zy: "ㄨㄛˇ ㄒㄧㄥˋ ㄌㄧˇ，ㄐㄧㄠˋ ㄉㄚˋ ㄨㄟˋ。", py: "Wǒ xìng Lǐ, jiào Dàwèi." },
+          { hz: "B：李先生，您好。", zy: "ㄌㄧˇ ㄒㄧㄢ ㄕㄥ，ㄋㄧㄣˊ ㄏㄠˇ。", py: "Lǐ Xiānsheng, nín hǎo." },
+          { hz: "A：您好。您是美國人嗎？", zy: "ㄋㄧㄣˊ ㄏㄠˇ。ㄋㄧㄣˊ ㄕˋ ㄇㄟˇ ㄍㄨㄛˊ ㄖㄣˊ ㄇㄚ˙？", py: "Nín hǎo. Nín shì Měiguó rén ma?" },
+          { hz: "B：不是，我是英國人。", zy: "ㄅㄨˊ ㄕˋ，ㄨㄛˇ ㄕˋ ㄧㄥ ㄍㄨㄛˊ ㄖㄣˊ。", py: "Búshì, wǒ shì Yīngguó rén." },
         ]
       },
       {
         heading: "對話二",
-            audio: "/static/audio/reading/ch1_p2.wav",
-            lines: [
-                { hz: "A：你好。", zy: "ㄋㄧˇ ㄏㄠˇ。", py: "Nǐ hǎo." },
-                { hz: "B：你好。", zy: "ㄋㄧˇ ㄏㄠˇ。", py: "Nǐ hǎo." },
-                { hz: "A：我叫李愛美。你叫什麼名字？", zy: "ㄨㄛˇ ㄐㄧㄠˋ ㄌㄧˇ ㄞˋ ㄇㄟˇ。ㄋㄧˇ ㄐㄧㄠˋ ㄕㄣˊ ㄇㄜ˙ ㄇㄧㄥˊ ㄗˋ？", py: "Wǒ jiào Lǐ Àiměi. Nǐ jiào shénme míngzi?" },
-                { hz: "B：我叫王珍妮。", zy: "ㄨㄛˇ ㄐㄧㄠˋ ㄨㄤˊ ㄓㄣ ㄋㄧ。", py: "Wǒ jiào Wáng Zhēnnī." },
-                { hz: "A：珍妮，你是哪國人？", zy: "ㄓㄣ ㄋㄧ，ㄋㄧˇ ㄕˋ ㄋㄚˇ ㄍㄨㄛˊ ㄖㄣˊ？", py: "Zhēnnī, nǐ shì nǎguó rén?" },
-                { hz: "B：我是美國人，你呢？", zy: "ㄨㄛˇ ㄕˋ ㄇㄟˇ ㄍㄨㄛˊ ㄖㄣˊ，ㄋㄧˇ ㄋㄜ˙？", py: "Wǒ shì Měiguó rén, nǐ ne?" },
-                { hz: "A：我是台灣人。", zy: "ㄨㄛˇ ㄕˋ ㄊㄞˊ ㄨㄢ ㄖㄣˊ。", py: "Wǒ shì Táiwān rén." },
-            ]
+        audio: "/static/audio/reading/ch1_p2.wav",
+        lines: [
+          { hz: "A：你好。", zy: "ㄋㄧˇ ㄏㄠˇ。", py: "Nǐ hǎo." },
+          { hz: "B：你好。", zy: "ㄋㄧˇ ㄏㄠˇ。", py: "Nǐ hǎo." },
+          { hz: "A：我叫李愛美。你叫什麼名字？", zy: "ㄨㄛˇ ㄐㄧㄠˋ ㄌㄧˇ ㄞˋ ㄇㄟˇ。ㄋㄧˇ ㄐㄧㄠˋ ㄕㄣˊ ㄇㄜ˙ ㄇㄧㄥˊ ㄗˋ？", py: "Wǒ jiào Lǐ Àiměi. Nǐ jiào shénme míngzi?" },
+          { hz: "B：我叫王珍妮。", zy: "ㄨㄛˇ ㄐㄧㄠˋ ㄨㄤˊ ㄓㄣ ㄋㄧ。", py: "Wǒ jiào Wáng Zhēnnī." },
+          { hz: "A：珍妮，你是哪國人？", zy: "ㄓㄣ ㄋㄧ，ㄋㄧˇ ㄕˋ ㄋㄚˇ ㄍㄨㄛˊ ㄖㄣˊ？", py: "Zhēnnī, nǐ shì nǎguó rén?" },
+          { hz: "B：我是美國人，你呢？", zy: "ㄨㄛˇ ㄕˋ ㄇㄟˇ ㄍㄨㄛˊ ㄖㄣˊ，ㄋㄧˇ ㄋㄜ˙？", py: "Wǒ shì Měiguó rén, nǐ ne?" },
+          { hz: "A：我是台灣人。", zy: "ㄨㄛˇ ㄕˋ ㄊㄞˊ ㄨㄢ ㄖㄣˊ。", py: "Wǒ shì Táiwān rén." },
+        ]
       }
     ]
   },
@@ -62,7 +62,7 @@ const LESSONS = {
     ]
   },
   3: {
-     title: "第三課　我喜歡看電影",
+    title: "第三課　我喜歡看電影",
     dialogues: [
       {
         heading: "對話一",
@@ -197,7 +197,7 @@ const LESSONS = {
     ]
   },
   7: {
-  title: "第七課　你的法文念得真好聽",
+    title: "第七課　你的法文念得真好聽",
     dialogues: [
       {
         heading: "對話一",
