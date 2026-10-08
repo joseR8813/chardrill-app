@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { fetchSetMembers } from './api.js';
+import { fetchSetMembers, fetchMissedToday } from './api.js';
 
 export function filteredCards() {
     if (state.currentFilter === 'all') return state.cards;
@@ -21,6 +21,15 @@ export async function restoreFilter() {
             state.tagFilterIds = new Set(members.map(c => c.id));
         } catch (err) {
             console.warn('restoreFilter: could not load saved set, showing all cards', err);
+            state.tagFilterIds = null;
+            return;
+        }
+    } else if (saved === 'missed:today') {
+        try {
+            const members = await fetchMissedToday();
+            state.tagFilterIds = new Set(members.map(c => c.id));
+        } catch (err) {
+            console.warn('restoreFilter: could not load missed cards, showing all cards', err);
             state.tagFilterIds = null;
             return;
         }
