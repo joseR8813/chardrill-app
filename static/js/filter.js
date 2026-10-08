@@ -4,7 +4,7 @@ import { fetchSetMembers } from './api.js';
 export function filteredCards() {
     if (state.currentFilter === 'all') return state.cards;
     if (state.currentFilter === 'custom') return state.cards.filter(c => !c.level);
-    if (state.currentFilter.startsWith('tag:')) return state.tagFilterIds ? state.cards.filter(c => state.tagFilterIds.has(c.id)) : [];
+    if (state.currentFilter.startsWith('tag:') || state.currentFilter === 'missed:today') return state.tagFilterIds ? state.cards.filter(c => state.tagFilterIds.has(c.id)) : [];
     return state.cards.filter(c => c.level === state.currentFilter);
 }
 

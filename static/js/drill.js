@@ -4,7 +4,7 @@ import { renderSenses, renderBreakdown } from './cardview.js';
 import { loadTodaysSessions, renderHistory } from './history.js';
 import { filteredCards } from './filter.js';
 import { renderCharList } from './manage.js';
-import { fetchSetMembers } from './api.js';
+import { fetchSetMembers, fetchMissedToday } from './api.js';
 
 // pile: 'new' -> 'practice' -> 'mastered'
 // (Pile logic itself now lives server-side in /api/cards/<id>/grade - see app.py -
@@ -317,6 +317,9 @@ document.getElementById('level-filter').addEventListener('change', async (e) => 
     if (state.currentFilter.startsWith('tag:')) {
         const tagId = state.currentFilter.slice(4);
         const members = await fetchSetMembers(tagId);
+        state.tagFilterIds = new Set(members.map(c => c.id));
+    } else if (state.currentFilter === 'missed:today') {
+        const members = await fetchMissedToday();
         state.tagFilterIds = new Set(members.map(c => c.id));
     } else {
         state.tagFilterIds = null;
