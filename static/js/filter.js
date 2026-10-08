@@ -29,7 +29,7 @@ export async function restoreFilter() {
     try { saved = localStorage.getItem('drillFilter'); } catch (err) { }
     if (!saved) return;
 
-     try {
+    try {
         state.tagFilterIds = await loadFilterIds(saved);
     } catch (err) {
         console.warn('restoreFilter: could not load saved set, showing all cards', err);
