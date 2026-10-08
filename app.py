@@ -193,6 +193,22 @@ def get_tag_cards(tag_id):
     """, (tag_id,)).fetchall()
     return jsonify(attach_senses(rows, db))
 
+@app.route("/api/cards/missed", methods=["GET"])
+def get_missed_today_cards():
+    """Cards missed at least once today (local date), for the 'Missed today' drill set."""
+    db = get_db()
+    today = date.today().isoformat()
+    rows = db.execute("""
+        SELECT c.id, c.hz, c.level, c.source, c.pile, c.streak
+        FROM cards c
+        WHERE c.id IN (
+            SELECT card_id FROM card_reviews
+            WHERE correct = 0
+              AND date(reviewed_at, 'localtime') = ?
+        )
+        ORDER BY c.hz
+    """, (today,)).fetchall()
+    return jsonify(attach_senses(rows, db))
 
 @app.route("/api/cards/search", methods=["GET"])
 def search_cards():
